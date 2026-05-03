@@ -21,7 +21,20 @@ uvicorn backend:app --reload --port 8000
 # http://localhost:8000
 ```
 
-The backend automatically uses GitHub data (JSON files in `/data/` folder) if Foundry is not accessible.
+The backend automatically uses PostgreSQL when `DATABASE_URL` or `POSTGRES_HOST` is configured. If PostgreSQL is not configured or reachable, it falls back to JSON files in `/data/`.
+
+The frontend is served by the backend at `http://localhost:8000` and uses that same origin automatically. Click the backend label in the header only when you intentionally need to point the page at a different backend.
+
+### PostgreSQL Data
+
+Configure either a single connection URL or the individual connection fields:
+
+```bash
+DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
+POSTGRES_SCHEMA=hackathon
+```
+
+Expected tables are `hackathon.sensors`, `hackathon.threats`, and `hackathon.responses`. The app reads live rows for the map, list panels, recommendations, and voice/text commands. Sensor repositioning, bearing, range, and response asset status are written back when those columns exist in the database schema.
 
 ### Updating Sample Data
 

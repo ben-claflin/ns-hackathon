@@ -314,12 +314,17 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
 <script>
 // ── Backend config ─────────────────────────────────────────────────────────
 const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-let BACKEND = isLocal ? 'http://localhost:8000'
-  : (prompt('Backend URL:', 'http://localhost:8000') || 'http://localhost:8000');
+const sameOriginBackend = `${location.protocol}//${location.host}`;
+let BACKEND = localStorage.getItem('cuasBackendUrl') || sameOriginBackend;
 document.getElementById('backend-info').textContent = 'BACKEND: ' + BACKEND.replace(/https?:\/\//,'');
 document.getElementById('backend-info').onclick = () => {
   const u = prompt('Backend URL:', BACKEND);
-  if (u) { BACKEND = u; document.getElementById('backend-info').textContent = 'BACKEND: '+BACKEND.replace(/https?:\/\//,''); loadAll(); }
+  if (u) {
+    BACKEND = u;
+    localStorage.setItem('cuasBackendUrl', BACKEND);
+    document.getElementById('backend-info').textContent = 'BACKEND: '+BACKEND.replace(/https?:\/\//,'');
+    loadAll();
+  }
 };
 const api = p => BACKEND + p;
 
@@ -402,8 +407,8 @@ function drawSensor(s) {
   if (sensorOverlays[s.sensorId]) sensorOverlays[s.sensorId].remove();
   const pts = conePoints(lat, lon, s.orientation, s.fov, s.range);
   sensorOverlays[s.sensorId] = pts
-    ? L.polygon(pts, {color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active?.5:.2}).addTo(map)
-    : L.circle([lat,lon], {radius:s.range, color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active?.5:.2}).addTo(map);
+    ? L.polygon(pts, {color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active ? .5 : .2}).addTo(map)
+    : L.circle([lat,lon], {radius:s.range, color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active ? .5 : .2}).addTo(map);
 
   if (sensorMarkers[s.sensorId]) sensorMarkers[s.sensorId].remove();
   const m = L.marker([lat,lon], {icon:sensorIcon(s.type,s.active), draggable:true, title:s.name}).addTo(map);
@@ -466,12 +471,13 @@ function drawAllThreats() {
 // ── Load all data ──────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    const [dr,sr,tr,ar,mc] = await Promise.all([
+    const [dr,sr,tr,ar,mc,st] = await Promise.all([
       fetch(api('/api/drones')).then(r=>r.json()),
       fetch(api('/api/sensors')).then(r=>r.json()),
       fetch(api('/api/threats')).then(r=>r.json()),
       fetch(api('/api/response-assets')).then(r=>r.json()),
       fetch(api('/api/map-center')).then(r=>r.json()),
+      fetch(api('/api/status')).then(r=>r.json()).catch(()=>null),
     ]);
     drones         = dr.drones||[];
     sensors        = sr.sensors||[];
@@ -484,6 +490,10 @@ async function loadAll() {
     document.getElementById('h-threats').textContent  = `${threats.length} THREATS`;
     document.getElementById('h-sensors').textContent  = `${sensors.filter(s=>s.active).length}/${sensors.length} SENSORS`;
     document.getElementById('h-assets').textContent   = `${responseAssets.filter(a=>a.status==='READY').length} ASSETS READY`;
+    if (st?.data_source) {
+      document.getElementById('backend-info').textContent =
+        `${st.data_source.replace('DataClient','').toUpperCase()}: ${BACKEND.replace(/https?:\/\//,'')}`;
+    }
     if (threats.some(t=>t.threatLevel==='HIGH')) {
       document.getElementById('alert-dot').className='dot r';
     }
@@ -492,7 +502,8 @@ async function loadAll() {
     sensors.forEach(drawSensor);
     responseAssets.forEach(drawAsset);
     drawAllThreats();
-    alertLog(`Loaded: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
+    const source = st?.data_source ? st.data_source.replace('DataClient','') : 'backend';
+    alertLog(`Loaded from ${source}: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
   } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
 }
 
@@ -744,6 +755,10 @@ async function sendCmd(text) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text:full, drone_id:selDrone, conversation_history:convHistory})
     });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({detail:res.statusText}));
+      throw new Error(err.detail||res.statusText);
+    }
     const data=await res.json();
     alertLog(data.response,'AI');
     speak(data.response);

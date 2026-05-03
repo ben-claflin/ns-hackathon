@@ -22,7 +22,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 def _make_data_client():
     """Try PostgreSQL first; fall back to JSON files."""
-    if os.environ.get("POSTGRES_HOST"):
+    if os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_HOST"):
         try:
             from db_client import PostgresDataClient
             client = PostgresDataClient()
@@ -314,6 +314,14 @@ async def api_map_center():
     if hasattr(data_client, "get_map_center"):
         return data_client.get_map_center()
     return {"latitude": 38.905, "longitude": -77.037, "zoom": 13}
+
+@app.get("/api/status")
+async def api_status():
+    return {
+        "data_source": data_client.__class__.__name__ if data_client else "uninitialized",
+        "postgres_configured": bool(os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_HOST")),
+        "voice_ai_configured": bool(ANTHROPIC_API_KEY),
+    }
 
 
 # ── Command (Claude agentic loop) ──────────────────────────────────────────

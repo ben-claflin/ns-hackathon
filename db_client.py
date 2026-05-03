@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DB_SCHEMA = os.environ.get("POSTGRES_SCHEMA", "hackathon")
+
 # ── Type classifiers ───────────────────────────────────────────────────────
 
 def _sensor_app_type(db_text: str) -> str:
@@ -106,16 +108,24 @@ class PostgresDataClient:
     """
 
     def __init__(self):
-        self.pool = psycopg2.pool.SimpleConnectionPool(
-            1, 5,
-            host=os.environ.get("POSTGRES_HOST", "localhost"),
-            port=int(os.environ.get("POSTGRES_PORT", 5432)),
-            dbname=os.environ.get("POSTGRES_DB", "postgres"),
-            user=os.environ.get("POSTGRES_USER", "postgres"),
-            password=os.environ.get("POSTGRES_PASSWORD", ""),
-        )
+        dsn = os.environ.get("DATABASE_URL")
+        if dsn:
+            self.pool = psycopg2.pool.SimpleConnectionPool(1, 5, dsn)
+        else:
+            self.pool = psycopg2.pool.SimpleConnectionPool(
+                1, 5,
+                host=os.environ.get("POSTGRES_HOST", "localhost"),
+                port=int(os.environ.get("POSTGRES_PORT", 5432)),
+                dbname=os.environ.get("POSTGRES_DB", "postgres"),
+                user=os.environ.get("POSTGRES_USER", "postgres"),
+                password=os.environ.get("POSTGRES_PASSWORD", ""),
+            )
         self._sensor_cache: dict = {}
         self._asset_cache:  dict = {}
+        self._columns_cache: dict[str, set[str]] = {}
+
+    def _table(self, name: str) -> str:
+        return f"{DB_SCHEMA}.{name}"
 
     def _conn(self):
         return self.pool.getconn()
@@ -140,6 +150,19 @@ class PostgresDataClient:
             conn.commit()
         finally:
             self._put(conn)
+
+    def _columns(self, table: str) -> set[str]:
+        if table not in self._columns_cache:
+            rows = self._query(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = %s AND table_name = %s
+                """,
+                (DB_SCHEMA, table),
+            )
+            self._columns_cache[table] = {r["column_name"] for r in rows}
+        return self._columns_cache[table]
 
     # ── Map DB rows to app schema ──────────────────────────────────────────
 
@@ -223,12 +246,14 @@ class PostgresDataClient:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def get_sensors(self) -> list[dict]:
-        rows = self._query("SELECT * FROM hackathon.sensors ORDER BY sensor_id")
+        rows = self._query(f"SELECT * FROM {self._table('sensors')} ORDER BY sensor_id")
         sensors = [self._map_sensor(r) for r in rows]
+        threats = self.get_threats()
         # Overlay any in-session updates
         for s in sensors:
             if s["sensorId"] in self._sensor_cache:
                 s.update(self._sensor_cache[s["sensorId"]])
+            s["detections"] = self._detect_threats_for_sensor(s, threats)
         return sensors
 
     def get_sensor(self, sensor_id: str) -> Optional[dict]:
@@ -239,15 +264,25 @@ class PostgresDataClient:
         if not sensor:
             return None
 
-        # Write orientation back to DB if changed
-        if "orientation" in patch:
-            # Convert app bearing back to DB format
-            new_orient = patch["orientation"]
-            if sensor.get("fov", 0) >= 360:
-                new_orient = 360   # preserve omnidirectional marker
+        db_updates = {}
+        cols = self._columns("sensors")
+        if "orientation" in patch and "orientation_deg" in cols:
+            db_updates["orientation_deg"] = 360 if sensor.get("fov", 0) >= 360 else patch["orientation"]
+        if "position" in patch:
+            pos = patch["position"] or {}
+            if "latitude" in pos and "latitude" in cols:
+                db_updates["latitude"] = pos["latitude"]
+            if "longitude" in pos and "longitude" in cols:
+                db_updates["longitude"] = pos["longitude"]
+        if "range" in patch and "range_meters" in cols:
+            db_updates["range_meters"] = patch["range"]
+        if "type" in patch and "sensor_type" in cols:
+            db_updates["sensor_type"] = patch["type"]
+        if db_updates:
+            assignments = ", ".join(f"{k}=%s" for k in db_updates)
             self._execute(
-                "UPDATE hackathon.sensors SET orientation_deg=%s WHERE sensor_id=%s",
-                (new_orient, sensor["db_id"]),
+                f"UPDATE {self._table('sensors')} SET {assignments} WHERE sensor_id=%s",
+                (*db_updates.values(), sensor["db_id"]),
             )
 
         # Cache remaining in-memory fields
@@ -260,8 +295,12 @@ class PostgresDataClient:
         return copy.deepcopy(sensor)
 
     def get_threats(self) -> list[dict]:
-        rows = self._query("SELECT * FROM hackathon.threats ORDER BY threat_id")
-        return [self._map_threat(r) for r in rows]
+        rows = self._query(f"SELECT * FROM {self._table('threats')} ORDER BY threat_id")
+        threats = [self._map_threat(r) for r in rows]
+        sensors = self._sensor_rows_without_detections()
+        for threat in threats:
+            threat["detectedBy"] = self._detect_sensors_for_threat(threat, sensors)
+        return threats
 
     def get_threat(self, threat_id: str) -> Optional[dict]:
         return next((t for t in self.get_threats() if t["threatId"] == threat_id), None)
@@ -270,7 +309,7 @@ class PostgresDataClient:
         return [t for t in self.get_threats() if t["status"] == "TRACKING"]
 
     def get_response_assets(self) -> list[dict]:
-        rows = self._query("SELECT * FROM hackathon.responses ORDER BY response_id")
+        rows = self._query(f"SELECT * FROM {self._table('responses')} ORDER BY response_id")
         assets = [self._map_asset(r) for r in rows]
         for a in assets:
             if a["assetId"] in self._asset_cache:
@@ -284,6 +323,26 @@ class PostgresDataClient:
         asset = self.get_response_asset(asset_id)
         if not asset:
             return None
+        db_updates = {}
+        cols = self._columns("responses")
+        if "status" in patch and "status" in cols:
+            db_updates["status"] = patch["status"]
+        if "status_detail" in patch and "status_detail" in cols:
+            db_updates["status_detail"] = patch["status_detail"]
+        if "position" in patch:
+            pos = patch["position"] or {}
+            if "latitude" in pos and "latitude" in cols:
+                db_updates["latitude"] = pos["latitude"]
+            if "longitude" in pos and "longitude" in cols:
+                db_updates["longitude"] = pos["longitude"]
+        if "heading" in patch and "heading" in cols:
+            db_updates["heading"] = patch["heading"]
+        if db_updates:
+            assignments = ", ".join(f"{k}=%s" for k in db_updates)
+            self._execute(
+                f"UPDATE {self._table('responses')} SET {assignments} WHERE response_id=%s",
+                (*db_updates.values(), asset["db_id"]),
+            )
         allowed = {"status", "position", "heading", "status_detail"}
         self._asset_cache.setdefault(asset_id, {}).update(
             {k: v for k, v in patch.items() if k in allowed}
@@ -310,6 +369,39 @@ class PostgresDataClient:
                         "timestamp":  latest.get("timestamp"),
                     })
         return detections
+
+    def _sensor_rows_without_detections(self) -> list[dict]:
+        rows = self._query(f"SELECT * FROM {self._table('sensors')} ORDER BY sensor_id")
+        sensors = [self._map_sensor(r) for r in rows]
+        for s in sensors:
+            if s["sensorId"] in self._sensor_cache:
+                s.update(self._sensor_cache[s["sensorId"]])
+        return sensors
+
+    def _detect_sensors_for_threat(self, threat: dict, sensors: list[dict]) -> list[str]:
+        if not threat.get("track"):
+            return []
+        latest = threat["track"][-1]
+        detected_by = []
+        for sensor in sensors:
+            if threat["threatId"] in self._detect_threats_for_sensor(sensor, [threat]):
+                detected_by.append(sensor["sensorId"])
+        return detected_by
+
+    def _detect_threats_for_sensor(self, sensor: dict, threats: list[dict]) -> list[str]:
+        if not sensor.get("active", True):
+            return []
+        s_lat = sensor["position"]["latitude"]
+        s_lon = sensor["position"]["longitude"]
+        detected = []
+        for threat in threats:
+            if not threat.get("track"):
+                continue
+            latest = threat["track"][-1]
+            dist = _haversine_m(s_lat, s_lon, latest["latitude"], latest["longitude"])
+            if dist <= sensor.get("range", 0):
+                detected.append(threat["threatId"])
+        return detected
 
     # ── Telemetry / missions (from JSON fallback) ─────────────────────────
     # These are not in the DB schema — served from files if present.
@@ -383,11 +475,11 @@ class PostgresDataClient:
     def get_map_center(self) -> dict:
         """Return centroid of all assets for auto-centering the map."""
         rows = self._query(
-            "SELECT latitude, longitude FROM hackathon.sensors "
+            f"SELECT latitude, longitude FROM {self._table('sensors')} "
             "UNION ALL "
-            "SELECT latitude, longitude FROM hackathon.threats "
+            f"SELECT latitude, longitude FROM {self._table('threats')} "
             "UNION ALL "
-            "SELECT latitude, longitude FROM hackathon.responses"
+            f"SELECT latitude, longitude FROM {self._table('responses')}"
         )
         if not rows:
             return {"latitude": 38.905, "longitude": -77.037, "zoom": 13}
