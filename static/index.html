@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone C2 Platform</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #111820;
+    --border: #1e3040;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --warn: #ff6b35;
+    --danger: #ff3030;
+    --text: #c8d8e8;
+    --dim: #5a7a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Header ── */
+  header { display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  header h1 { color: var(--accent); font-size: 16px; letter-spacing: 3px; text-transform: uppercase; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .header-spacer { flex: 1; }
+  #foundry-status { font-size: 11px; color: var(--dim); }
+
+  /* ── Layout ── */
+  .main { display: grid; grid-template-columns: 280px 1fr 300px; flex: 1; overflow: hidden; }
+
+  /* ── Left panel ── */
+  .panel { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-title { padding: 10px 14px; font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+
+  .drone-list { list-style: none; }
+  .drone-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.2s; }
+  .drone-item:hover { border-color: var(--accent); }
+  .drone-item.active { border-color: var(--accent2); background: #0a1f10; }
+  .drone-id { color: var(--accent); font-weight: bold; font-size: 12px; }
+  .drone-status { font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .drone-status.airborne { color: var(--accent2); }
+  .drone-status.warning { color: var(--warn); }
+
+  #load-drones-btn { width: 100%; padding: 8px; background: #0a1a2a; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 4px; letter-spacing: 1px; font-family: inherit; font-size: 12px; }
+  #load-drones-btn:hover { background: #0d2035; }
+
+  /* ── Map ── */
+  #map { flex: 1; background: #060d14; }
+  .map-container { position: relative; display: flex; flex-direction: column; }
+  .timeline-bar { background: var(--panel); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .timeline-bar label { font-size: 11px; color: var(--dim); white-space: nowrap; }
+  #timeline { flex: 1; accent-color: var(--accent); }
+  #time-display { font-size: 11px; color: var(--accent); min-width: 160px; text-align: right; }
+  #speed-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px; font-family: inherit; font-size: 11px; }
+  #playback-btn { padding: 4px 12px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 1px; }
+  #playback-btn:hover { opacity: 0.85; }
+  #playback-btn.playing { background: var(--warn); }
+
+  /* ── Right panel ── */
+  .right-panel { background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+
+  /* Telemetry readout */
+  .telemetry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
+  .telem-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+  .telem-label { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+  .telem-value { font-size: 16px; color: var(--accent); margin-top: 2px; }
+  .telem-unit { font-size: 10px; color: var(--dim); }
+
+  /* Voice + chat */
+  .voice-section { border-top: 1px solid var(--border); padding: 10px; flex: 1; display: flex; flex-direction: column; }
+  .chat-log { flex: 1; overflow-y: auto; margin-bottom: 8px; font-size: 12px; }
+  .chat-msg { padding: 4px 0; border-bottom: 1px solid #111f28; }
+  .chat-msg.operator { color: var(--accent2); }
+  .chat-msg.ai { color: var(--text); }
+  .chat-msg.system { color: var(--dim); font-style: italic; }
+
+  .voice-controls { display: flex; gap: 8px; }
+  #voice-btn { flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 4px; font-family: inherit; font-size: 12px; letter-spacing: 1px; transition: all 0.2s; }
+  #voice-btn:hover { background: #0a1a2a; }
+  #voice-btn.recording { border-color: var(--danger); color: var(--danger); animation: pulse 0.8s infinite; }
+  #send-btn { padding: 10px 14px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: bold; }
+  #text-input { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; border-radius: 3px; margin-bottom: 6px; }
+  #text-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot"></div>
+  <h1>Drone C2 Platform</h1>
+  <div class="header-spacer"></div>
+  <span id="foundry-status">FOUNDRY: CONNECTING...</span>
+</header>
+
+<div class="main">
+
+  <!-- Left: drone list -->
+  <div class="panel">
+    <div class="panel-title">Assets</div>
+    <div class="panel-body">
+      <button id="load-drones-btn">LOAD DRONES</button>
+      <ul class="drone-list" id="drone-list" style="margin-top:10px"></ul>
+    </div>
+  </div>
+
+  <!-- Center: map + timeline -->
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="timeline-bar">
+      <label>PLAYBACK</label>
+      <input type="range" id="timeline" min="0" max="100" value="0" disabled>
+      <span id="time-display">-- : -- : --</span>
+      <select id="speed-select">
+        <option value="1">1x</option>
+        <option value="5">5x</option>
+        <option value="30">30x</option>
+        <option value="60">60x</option>
+      </select>
+      <button id="playback-btn">▶ PLAY</button>
+    </div>
+  </div>
+
+  <!-- Right: telemetry + voice -->
+  <div class="right-panel">
+    <div class="panel-title">Telemetry</div>
+    <div class="telemetry-grid">
+      <div class="telem-cell"><div class="telem-label">Latitude</div><div class="telem-value" id="t-lat">--</div></div>
+      <div class="telem-cell"><div class="telem-label">Longitude</div><div class="telem-value" id="t-lon">--</div></div>
+      <div class="telem-cell"><div class="telem-label">Altitude</div><div class="telem-value" id="t-alt">--</div><div class="telem-unit">meters</div></div>
+      <div class="telem-cell"><div class="telem-label">Speed</div><div class="telem-value" id="t-spd">--</div><div class="telem-unit">m/s</div></div>
+      <div class="telem-cell"><div class="telem-label">Heading</div><div class="telem-value" id="t-hdg">--</div><div class="telem-unit">°</div></div>
+      <div class="telem-cell"><div class="telem-label">Battery</div><div class="telem-value" id="t-bat">--</div><div class="telem-unit">%</div></div>
+      <div class="telem-cell" style="grid-column:1/-1"><div class="telem-label">Status</div><div class="telem-value" id="t-status" style="font-size:13px">OFFLINE</div></div>
+    </div>
+
+    <div class="voice-section">
+      <div class="panel-title" style="margin: 0 -10px 8px; padding: 6px 10px;">Command Interface</div>
+      <div class="chat-log" id="chat-log">
+        <div class="chat-msg system">System ready. Select a drone to begin.</div>
+      </div>
+      <input type="text" id="text-input" placeholder="Type command or use voice...">
+      <div class="voice-controls">
+        <button id="voice-btn">🎤 VOICE</button>
+        <button id="send-btn">SEND</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Map setup ──────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [38.9, -77.0],
+  zoom: 10,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CartoDB',
+  maxZoom: 19,
+}).addTo(map);
+
+const droneIcon = L.divIcon({
+  html: '<div style="width:16px;height:16px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  className: '',
+});
+
+// ── State ──────────────────────────────────────────────────────────────────
+let activeDrone = null;
+let telemetryData = [];
+let droneMarker = null;
+let trailPolyline = null;
+let playbackIndex = 0;
+let playbackTimer = null;
+let isPlaying = false;
+let conversationHistory = [];
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function log(text, cls = 'system') {
+  const log = document.getElementById('chat-log');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${cls}`;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updateTelemetryDisplay(row) {
+  const p = row.properties || row;
+  const set = (id, val, digits = 2) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val != null ? (typeof val === 'number' ? val.toFixed(digits) : val) : '--';
+  };
+  set('t-lat', p.latitude || p.lat, 6);
+  set('t-lon', p.longitude || p.lon, 6);
+  set('t-alt', p.altitude || p.alt, 0);
+  set('t-spd', p.speed || p.groundSpeed, 1);
+  set('t-hdg', p.heading, 0);
+  set('t-bat', p.battery || p.batteryPercent, 0);
+  const statusEl = document.getElementById('t-status');
+  const status = p.status || p.flightStatus || 'ACTIVE';
+  statusEl.textContent = status;
+  statusEl.style.color = status === 'ACTIVE' || status === 'AIRBORNE' ? 'var(--accent2)' :
+                         status === 'WARNING' ? 'var(--warn)' : 'var(--accent)';
+}
+
+function updateMapPosition(row) {
+  const p = row.properties || row;
+  const lat = p.latitude || p.lat;
+  const lon = p.longitude || p.lon;
+  if (!lat || !lon) return;
+
+  if (!droneMarker) {
+    droneMarker = L.marker([lat, lon], { icon: droneIcon }).addTo(map);
+  } else {
+    droneMarker.setLatLng([lat, lon]);
+  }
+
+  // Update trail
+  const allPoints = telemetryData.slice(0, playbackIndex + 1).map(r => {
+    const rp = r.properties || r;
+    return [rp.latitude || rp.lat, rp.longitude || rp.lon];
+  }).filter(([a, b]) => a && b);
+
+  if (trailPolyline) {
+    trailPolyline.setLatLngs(allPoints);
+  } else {
+    trailPolyline = L.polyline(allPoints, { color: '#00d4ff', weight: 2, opacity: 0.6 }).addTo(map);
+  }
+
+  map.panTo([lat, lon], { animate: true, duration: 0.3 });
+}
+
+function formatTime(row) {
+  const p = row.properties || row;
+  const ts = p.timestamp || p.time || p.eventTime;
+  if (!ts) return `Frame ${playbackIndex}`;
+  try { return new Date(ts).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'; }
+  catch { return ts; }
+}
+
+// ── Load drones ────────────────────────────────────────────────────────────
+document.getElementById('load-drones-btn').addEventListener('click', async () => {
+  document.getElementById('foundry-status').textContent = 'FOUNDRY: QUERYING...';
+  try {
+    const res = await fetch('/api/drones');
+    const data = await res.json();
+    const list = document.getElementById('drone-list');
+    list.innerHTML = '';
+    if (!data.drones.length) {
+      list.innerHTML = '<li style="color:var(--warn);padding:8px">No drones found</li>';
+      document.getElementById('foundry-status').textContent = 'FOUNDRY: CONNECTED (empty)';
+      return;
+    }
+    data.drones.forEach(id => {
+      const li = document.createElement('li');
+      li.className = 'drone-item';
+      li.innerHTML = `<div class="drone-id">${id}</div><div class="drone-status airborne">TRACKING</div>`;
+      li.addEventListener('click', () => selectDrone(id, li));
+      list.appendChild(li);
+    });
+    document.getElementById('foundry-status').textContent = `FOUNDRY: CONNECTED (${data.drones.length} assets)`;
+    log(`Loaded ${data.drones.length} drone(s) from Foundry`, 'system');
+  } catch (e) {
+    document.getElementById('foundry-status').textContent = 'FOUNDRY: ERROR';
+    log(`Failed to load drones: ${e.message}`, 'system');
+  }
+});
+
+// ── Select drone + load telemetry ──────────────────────────────────────────
+async function selectDrone(droneId, el) {
+  document.querySelectorAll('.drone-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  activeDrone = droneId;
+  log(`Loading telemetry for ${droneId}...`, 'system');
+
+  try {
+    const res = await fetch(`/api/telemetry/${droneId}`);
+    const data = await res.json();
+    telemetryData = data.telemetry || [];
+
+    if (!telemetryData.length) {
+      log(`No telemetry data found for ${droneId}`, 'system');
+      return;
+    }
+
+    // Reset playback
+    stopPlayback();
+    playbackIndex = 0;
+    const slider = document.getElementById('timeline');
+    slider.max = telemetryData.length - 1;
+    slider.value = 0;
+    slider.disabled = false;
+    document.getElementById('playback-btn').disabled = false;
+
+    // Show first point
+    updateTelemetryDisplay(telemetryData[0]);
+    updateMapPosition(telemetryData[0]);
+    document.getElementById('time-display').textContent = formatTime(telemetryData[0]);
+
+    log(`Loaded ${telemetryData.length} telemetry points for ${droneId}`, 'system');
+  } catch (e) {
+    log(`Error loading telemetry: ${e.message}`, 'system');
+  }
+}
+
+// ── Timeline scrubber ──────────────────────────────────────────────────────
+document.getElementById('timeline').addEventListener('input', e => {
+  if (!telemetryData.length) return;
+  playbackIndex = parseInt(e.target.value);
+  updateTelemetryDisplay(telemetryData[playbackIndex]);
+  updateMapPosition(telemetryData[playbackIndex]);
+  document.getElementById('time-display').textContent = formatTime(telemetryData[playbackIndex]);
+});
+
+function stopPlayback() {
+  if (playbackTimer) { clearInterval(playbackTimer); playbackTimer = null; }
+  isPlaying = false;
+  document.getElementById('playback-btn').textContent = '▶ PLAY';
+  document.getElementById('playback-btn').classList.remove('playing');
+}
+
+function startPlayback() {
+  if (!telemetryData.length) return;
+  isPlaying = true;
+  document.getElementById('playback-btn').textContent = '⏸ PAUSE';
+  document.getElementById('playback-btn').classList.add('playing');
+  const speed = parseFloat(document.getElementById('speed-select').value);
+  const interval = 1000 / speed;
+
+  playbackTimer = setInterval(() => {
+    if (playbackIndex >= telemetryData.length - 1) {
+      stopPlayback();
+      return;
+    }
+    playbackIndex++;
+    document.getElementById('timeline').value = playbackIndex;
+    updateTelemetryDisplay(telemetryData[playbackIndex]);
+    updateMapPosition(telemetryData[playbackIndex]);
+    document.getElementById('time-display').textContent = formatTime(telemetryData[playbackIndex]);
+  }, interval);
+}
+
+document.getElementById('playback-btn').addEventListener('click', () => {
+  if (isPlaying) stopPlayback();
+  else startPlayback();
+});
+
+// ── Voice command ──────────────────────────────────────────────────────────
+let recognition = null;
+const voiceBtn = document.getElementById('voice-btn');
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('text-input').value = text;
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = '🎤 VOICE';
+    sendCommand(text);
+  };
+
+  recognition.onerror = () => {
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = '🎤 VOICE';
+    log('Voice recognition error', 'system');
+  };
+
+  recognition.onend = () => {
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = '🎤 VOICE';
+  };
+} else {
+  voiceBtn.textContent = '🎤 (no mic)';
+  voiceBtn.disabled = true;
+}
+
+voiceBtn.addEventListener('click', () => {
+  if (!recognition) return;
+  if (voiceBtn.classList.contains('recording')) {
+    recognition.stop();
+  } else {
+    voiceBtn.classList.add('recording');
+    voiceBtn.textContent = '● LISTENING';
+    recognition.start();
+  }
+});
+
+// ── Text-to-speech response ────────────────────────────────────────────────
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 1.1;
+  window.speechSynthesis.speak(utt);
+}
+
+// ── Send command to backend ────────────────────────────────────────────────
+async function sendCommand(text) {
+  if (!text.trim()) return;
+  log(`OPERATOR: ${text}`, 'operator');
+  document.getElementById('text-input').value = '';
+
+  try {
+    const res = await fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        drone_id: activeDrone,
+        conversation_history: conversationHistory,
+      }),
+    });
+    const data = await res.json();
+    log(`AI: ${data.response}`, 'ai');
+    speak(data.response);
+    conversationHistory = data.updated_history;
+    if (data.actions_taken.length) {
+      log(`Actions: ${data.actions_taken.join(', ')}`, 'system');
+    }
+  } catch (e) {
+    log(`Error: ${e.message}`, 'system');
+  }
+}
+
+document.getElementById('send-btn').addEventListener('click', () => {
+  sendCommand(document.getElementById('text-input').value);
+});
+document.getElementById('text-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCommand(e.target.value);
+});
+
+// ── Initial status check ───────────────────────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch('/api/drones');
+    if (r.ok) {
+      document.getElementById('foundry-status').textContent = 'FOUNDRY: CONNECTED';
+    }
+  } catch {
+    document.getElementById('foundry-status').textContent = 'FOUNDRY: OFFLINE';
+  }
+})();
+</script>
+</body>
+</html>

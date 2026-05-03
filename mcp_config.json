@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "foundry-drone-c2": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "/path/to/ns-hackathon",
+      "env": {}
+    }
+  }
+}
