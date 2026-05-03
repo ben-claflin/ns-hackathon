@@ -4,6 +4,7 @@ Drone C2 + Counter-UAS Backend — FastAPI + OpenAI tool calling
 import os
 import json
 import asyncio
+from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,11 @@ from github_data_client import GitHubDataClient
 load_dotenv()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+# Absolute paths relative to this file so uvicorn can be run from any directory
+_HERE = Path(__file__).parent
+_STATIC_DIR = _HERE / "static"
+_DATA_DIR = _HERE / "data"
 
 def _make_data_client():
     """Use local JSON files in the repository as the app data store."""
@@ -226,7 +232,8 @@ app.add_middleware(
     ],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+app.mount("/data", StaticFiles(directory=str(_DATA_DIR)), name="data")
 
 
 # ── Tool execution ─────────────────────────────────────────────────────────
@@ -288,7 +295,7 @@ def execute_tool(name: str, inputs: dict) -> str:
 
 @app.get("/")
 async def root():
-    return FileResponse("static/index.html")
+    return FileResponse(str(_STATIC_DIR / "index.html"))
 
 @app.get("/api/drones")
 async def api_list_drones():

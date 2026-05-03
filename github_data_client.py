@@ -8,6 +8,9 @@ import copy
 from typing import Optional
 from pathlib import Path
 
+# Absolute path to the data directory, regardless of working directory.
+_DEFAULT_DATA_DIR = Path(__file__).parent / "data"
+
 
 def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     """Great-circle distance in metres between two lat/lon points."""
@@ -21,8 +24,8 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
 
 class GitHubDataClient:
 
-    def __init__(self, data_dir: str = "data"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir: str = None):
+        self.data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
         self._load_data()
 
     def _load_data(self):
