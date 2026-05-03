@@ -220,6 +220,7 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
     <div id="map"></div>
     <div class="map-legend">
       <div class="lr"><div class="ls" style="background:var(--hostile);clip-path:polygon(50% 0%,100% 100%,0% 100%)"></div>Hostile track</div>
+      <div class="lr"><div class="ls" style="background:var(--accent)"></div>Friendly drone</div>
       <div class="lr"><div class="ls" style="background:var(--cram);border-radius:2px"></div>C-RAM</div>
       <div class="lr"><div class="ls" style="background:var(--patriot)"></div>Patriot PAC-3</div>
       <div class="lr"><div class="ls" style="background:var(--ew)"></div>EW Jammer</div>
@@ -312,6 +313,17 @@ async function fetchLocalData(path) {
   if (path === '/api/sensors') return {sensors: await readStaticJSON('sensors.json')};
   if (path === '/api/threats') return {threats: await readStaticJSON('threats.json')};
   if (path === '/api/response-assets') return {assets: await readStaticJSON('response_assets.json')};
+  if (path === '/api/drones') {
+    const tel = await readStaticJSON('drone_telemetry.json');
+    const ids = [...new Set(tel.map(t=>t.droneId).filter(Boolean))].sort();
+    return {drones: ids};
+  }
+  if (path.startsWith('/api/telemetry/')) {
+    const id = path.split('/').pop();
+    const tel = await readStaticJSON('drone_telemetry.json');
+    const rows = tel.filter(t=>t.droneId===id).sort((a,b)=>a.timestamp>b.timestamp?1:-1);
+    return {drone_id: id, count: rows.length, telemetry: rows};
+  }
   if (path === '/api/map-center') {
     const [sensorsData, threatsData, assetsData] = await Promise.all([
       readStaticJSON('sensors.json'), readStaticJSON('threats.json'), readStaticJSON('response_assets.json')
@@ -328,10 +340,11 @@ async function fetchLocalData(path) {
   throw new Error(`${path} is unavailable without the local backend`);
 }
 function clearMapLayers() {
-  [threatMarkers, threatTrails, sensorMarkers, sensorOverlays, assetMarkers, assetRangeCircles]
+  [threatMarkers, threatTrails, sensorMarkers, sensorOverlays, assetMarkers, assetRangeCircles, droneMarkers]
     .forEach(group => Object.values(group).forEach(layer => layer?.remove?.()));
   threatMarkers={}; threatTrails={};
   sensorMarkers={}; sensorOverlays={}; assetMarkers={}; assetRangeCircles={};
+  droneMarkers={};
 }
 function visibleSensors() {
   if (modality === 'RF') return sensors.filter(s=>s.type==='RF');
@@ -354,6 +367,7 @@ function redrawMap() {
   visibleSensors().forEach(drawSensor);
   visibleAssets().forEach(drawAsset);
   drawAllThreats();
+  if (modality === 'ALL' || modality === 'ASSETS') drones.forEach(drawDrone);
   fitMapToData();
 }
 function fitMapToData() {
@@ -361,6 +375,7 @@ function fitMapToData() {
   visibleSensors().forEach(s => bounds.push([s.position.latitude, s.position.longitude]));
   visibleAssets().forEach(a => bounds.push([a.position.latitude, a.position.longitude]));
   visibleThreats().forEach(t => (t.track||[]).forEach(p => bounds.push([p.latitude, p.longitude])));
+  drones.forEach(d => { if (d.latitude && d.longitude) bounds.push([d.latitude, d.longitude]); });
   const valid = bounds.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
   if (valid.length) map.fitBounds(valid, {padding:[32,32], maxZoom:14});
 }
@@ -534,10 +549,11 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
   { attribution:'&copy; CartoDB', maxZoom:19 }).addTo(map);
 
 // ── State ──────────────────────────────────────────────────────────────────
-let sensors=[], threats=[], responseAssets=[];
+let sensors=[], threats=[], responseAssets=[], drones=[];
 let threatMarkers={}, threatTrails={};
 let sensorMarkers={}, sensorOverlays={};
 let assetMarkers={}, assetRangeCircles={};
+let droneMarkers={};
 let selSensor=null, selThreat=null;
 let modality='ALL', convHistory=[];
 
@@ -572,6 +588,14 @@ const assetIcon = (type, status) => {
   return L.divIcon({
     html:`<div style="color:${c};font-size:${cfg.size}px;text-shadow:0 0 6px ${c};line-height:1;cursor:pointer">${cfg.shape}</div>`,
     iconSize:[22,22], iconAnchor:[11,11], className:''
+  });
+};
+
+const droneIcon = (status) => {
+  const c = status === 'RTB' ? '#ffaa00' : status === 'HOLD' ? '#ff8800' : '#00d4ff';
+  return L.divIcon({
+    html:`<div style="color:${c};font-size:16px;text-shadow:0 0 6px ${c};line-height:1;cursor:pointer">✈</div>`,
+    iconSize:[18,18], iconAnchor:[9,9], className:''
   });
 };
 
@@ -665,6 +689,18 @@ function drawAllThreats() {
   });
 }
 
+// ── Draw drones ────────────────────────────────────────────────────────────
+function drawDrone(d) {
+  if (!d.latitude || !d.longitude) return;
+  if (droneMarkers[d.droneId]) droneMarkers[d.droneId].remove();
+  const m = L.marker([d.latitude, d.longitude], {icon: droneIcon(d.status)}).addTo(map);
+  const bat = d.battery != null ? ` · ${Math.round(d.battery)}% bat` : '';
+  const alt = d.altitude != null ? ` · ${Math.round(d.altitude)}m` : '';
+  m.bindTooltip(`<b>${d.droneId}</b><br>Status: ${d.status||'ACTIVE'}${alt}${bat}<br>Speed: ${d.speed||'?'} m/s`, {direction:'top'});
+  m.on('click', () => alertLog(`${d.droneId} — ${d.status||'ACTIVE'}${alt}${bat}, ${d.speed||'?'} m/s`, 'INFO'));
+  droneMarkers[d.droneId] = m;
+}
+
 // ── Load all data ──────────────────────────────────────────────────────────
 async function loadAll() {
   try {
@@ -681,6 +717,21 @@ async function loadAll() {
     responseAssets = ar.assets||[];
     if (mc?.latitude) map.setView([mc.latitude, mc.longitude], mc.zoom||13);
 
+    // Load drone latest positions
+    drones = [];
+    try {
+      const dr = await fetchJSON('/api/drones');
+      const droneIds = dr.drones || [];
+      const telPromises = droneIds.map(id =>
+        fetchJSON(`/api/telemetry/${id}`).then(r => {
+          const rows = r.telemetry || [];
+          if (!rows.length) return null;
+          return { droneId: id, ...rows[rows.length - 1] };
+        }).catch(() => null)
+      );
+      drones = (await Promise.all(telPromises)).filter(Boolean);
+    } catch(e) { /* drones optional */ }
+
     document.getElementById('h-threats').textContent  = `${threats.length} THREATS`;
     document.getElementById('h-sensors').textContent  = `${sensors.filter(s=>s.active).length}/${sensors.length} SENSORS`;
     document.getElementById('h-assets').textContent   = `${responseAssets.filter(a=>a.status==='READY').length} ASSETS READY`;
@@ -693,9 +744,11 @@ async function loadAll() {
     }
 
     renderThreatList(); renderAssetList(); renderSensorList();
+    if (map.invalidateSize) map.invalidateSize();
     redrawMap();
     const source = st?.data_source ? st.data_source.replace('DataClient','') : 'backend';
-    alertLog(`Loaded from ${source}: ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
+    const aiStatus = st?.voice_ai_configured ? '' : ' · AI: set OPENAI_API_KEY';
+    alertLog(`Loaded: ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} assets, ${drones.length} drones${aiStatus}`,'INFO');
   } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
 }
 
@@ -914,7 +967,12 @@ async function sendCmd(text) {
       document.getElementById('rec-text').textContent = data.response;
       document.getElementById('rec-box').classList.add('show');
     }
-  } catch(e) { alertLog('Error: '+e.message,'WARNING'); }
+  } catch(e) {
+    const msg = e.message.includes('503') || e.message.includes('OPENAI_API_KEY')
+      ? 'Voice AI not configured — set OPENAI_API_KEY in .env and restart the backend'
+      : 'Error: ' + e.message;
+    alertLog(msg, 'WARNING');
+  }
 }
 document.getElementById('sb').addEventListener('click',()=>sendCmd(document.getElementById('ti').value));
 document.getElementById('ti').addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(e.target.value); });
