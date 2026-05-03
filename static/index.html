@@ -7,296 +7,299 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root {
-  --bg:      #080c10;
-  --panel:   #0d1520;
-  --border:  #1a2e40;
-  --accent:  #00d4ff;
-  --green:   #00ff88;
-  --warn:    #ffaa00;
-  --danger:  #ff3030;
-  --hostile: #ff4422;
-  --rf:      #cc44ff;
-  --acoustic:#00ffcc;
-  --imagery: #ffdd00;
-  --text:    #b8ccd8;
-  --dim:     #4a6a7a;
+  --bg:       #080c10;
+  --panel:    #0d1520;
+  --border:   #1a2e40;
+  --accent:   #00d4ff;
+  --green:    #00ff88;
+  --warn:     #ffaa00;
+  --danger:   #ff3030;
+  --hostile:  #ff4422;
+  --rf:       #cc44ff;
+  --acoustic: #00ffcc;
+  --imagery:  #ffdd00;
+  --uas-int:  #44aaff;
+  --cram:     #00ff88;
+  --patriot:  #ffcc00;
+  --text:     #b8ccd8;
+  --dim:      #4a6a7a;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 12px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ── Header ── */
-header { display: flex; align-items: center; gap: 12px; padding: 6px 14px; background: var(--panel); border-bottom: 1px solid var(--border); min-height: 38px; }
-header h1 { color: var(--danger); font-size: 14px; letter-spacing: 3px; }
-.hdr-sep { color: var(--border); }
-.hdr-stat { font-size: 10px; display: flex; align-items: center; gap: 5px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; }
-.dot.green  { background: var(--green);   box-shadow: 0 0 5px var(--green); }
-.dot.red    { background: var(--danger);  box-shadow: 0 0 5px var(--danger); }
-.dot.yellow { background: var(--warn);    box-shadow: 0 0 5px var(--warn); animation: blink .8s infinite; }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-.hdr-right { margin-left: auto; display: flex; gap: 14px; align-items: center; font-size: 10px; color: var(--dim); }
+/* Header */
+header { display: flex; align-items: center; gap: 10px; padding: 5px 12px; background: var(--panel); border-bottom: 2px solid var(--danger); min-height: 36px; flex-wrap: wrap; }
+header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-space: nowrap; }
+.hd { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot.g { background: var(--green);   box-shadow: 0 0 5px var(--green); }
+.dot.r { background: var(--danger);  box-shadow: 0 0 5px var(--danger); animation: blink .9s infinite; }
+.dot.y { background: var(--warn);    box-shadow: 0 0 5px var(--warn); animation: blink .9s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+.hdr-r { margin-left: auto; display: flex; gap: 12px; align-items: center; font-size: 10px; color: var(--dim); }
 #backend-info { cursor: pointer; }
 #backend-info:hover { color: var(--accent); }
 
-/* ── Layout ── */
-.layout { display: grid; grid-template-columns: 240px 1fr 280px; flex: 1; overflow: hidden; }
+/* Layout */
+.layout { display: grid; grid-template-columns: 230px 1fr 290px; flex: 1; overflow: hidden; }
 
-/* ── Shared panel ── */
-.panel { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-.panel.right { border-right: none; border-left: 1px solid var(--border); }
-.ptitle { padding: 7px 10px; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+/* Panel base */
+.panel { background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+.panel.left  { border-right: 1px solid var(--border); }
+.panel.right { border-left:  1px solid var(--border); }
+.ptitle { padding: 6px 9px; font-size: 9px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .pbody { flex: 1; overflow-y: auto; }
+.sec { padding: 4px 9px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); background: #0a1018; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 
-/* ── Left: assets + sensors ── */
-.section-hdr { padding: 5px 10px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); background: #0a1018; border-bottom: 1px solid var(--border); }
+/* List items */
+.item { padding: 6px 9px; border-bottom: 1px solid #0d1a24; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background .12s; }
+.item:hover  { background: #111e28; }
+.item.sel    { background: #0a1f28; }
+.item-icon   { font-size: 15px; flex-shrink: 0; }
+.item-name   { font-size: 11px; font-weight: bold; }
+.item-meta   { font-size: 9px; color: var(--dim); margin-top: 1px; }
+.badge { font-size: 8px; padding: 1px 5px; border-radius: 2px; white-space: nowrap; }
+.bh  { background: #3a0808; color: var(--danger); }
+.bm  { background: #2a1e00; color: var(--warn); }
+.bl  { background: #0a2a10; color: var(--green); }
+.bok { background: #0a1a3a; color: var(--accent); }
+.beng{ background: #1a0a2a; color: var(--rf); }
 
-.asset-item { padding: 7px 10px; border-bottom: 1px solid #0d1a24; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background .15s; }
-.asset-item:hover { background: #111e28; }
-.asset-item.active { background: #0a1f10; border-left: 2px solid var(--green); }
-.asset-item.threat-item { border-left: 2px solid transparent; }
-.asset-item.threat-item.high   { border-left-color: var(--danger); }
-.asset-item.threat-item.medium { border-left-color: var(--warn); }
-.asset-icon { font-size: 14px; }
-.asset-name { font-size: 11px; font-weight: bold; flex: 1; }
-.asset-name.friendly { color: var(--accent); }
-.asset-name.hostile  { color: var(--hostile); }
-.asset-meta { font-size: 9px; color: var(--dim); }
-.badge { font-size: 9px; padding: 1px 5px; border-radius: 2px; }
-.badge.high    { background: #3a0808; color: var(--danger); }
-.badge.medium  { background: #2a1e00; color: var(--warn); }
-.badge.low     { background: #0a2a10; color: var(--green); }
-.badge.tracking{ background: #0a1a3a; color: var(--accent); }
+/* Asset status colors */
+.c-friendly { color: var(--accent); }
+.c-hostile  { color: var(--hostile); }
+.c-uas-int  { color: var(--uas-int); }
+.c-cram     { color: var(--cram); }
+.c-patriot  { color: var(--patriot); }
 
-/* Sensor items */
-.sensor-item { padding: 7px 10px; border-bottom: 1px solid #0d1a24; cursor: pointer; display: flex; align-items: center; gap: 7px; }
-.sensor-item:hover { background: #111e28; }
-.sensor-item.selected { background: #0a1a2a; border-left: 2px solid var(--accent); }
-.sensor-item.inactive { opacity: .45; }
-.s-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.s-indicator.RF       { background: var(--rf);       box-shadow: 0 0 4px var(--rf); }
-.s-indicator.ACOUSTIC { background: var(--acoustic); box-shadow: 0 0 4px var(--acoustic); }
-.s-indicator.IMAGERY  { background: var(--imagery);  box-shadow: 0 0 4px var(--imagery); }
-.s-indicator.inactive { background: var(--dim); box-shadow: none; }
-.s-name { font-size: 11px; flex: 1; }
-.s-meta { font-size: 9px; color: var(--dim); }
+/* Sensor indicator dot */
+.sind { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sind.RF       { background: var(--rf);       box-shadow: 0 0 3px var(--rf); }
+.sind.ACOUSTIC { background: var(--acoustic); box-shadow: 0 0 3px var(--acoustic); }
+.sind.IMAGERY  { background: var(--imagery);  box-shadow: 0 0 3px var(--imagery); }
+.sind.off      { background: var(--dim); box-shadow: none; }
 
 /* Sensor editor */
-.sensor-editor { padding: 8px; border-top: 1px solid var(--border); background: #060d14; }
-.editor-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.editor-label { font-size: 10px; color: var(--dim); width: 70px; }
-.editor-input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 3px; font-family: inherit; font-size: 11px; }
-.editor-input:focus { outline: none; border-color: var(--accent); }
-.editor-btn { padding: 4px 10px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; border-radius: 3px; font-size: 10px; font-family: inherit; }
-.editor-btn:hover { background: #0a1a2a; }
-.editor-btn.danger { border-color: var(--danger); color: var(--danger); }
+.sed { padding: 8px; border-top: 1px solid var(--border); background: #060d14; flex-shrink: 0; }
+.er { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.el { font-size: 9px; color: var(--dim); width: 65px; }
+.ei { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 5px; border-radius: 2px; font-family: inherit; font-size: 10px; }
+.ei:focus { outline: none; border-color: var(--accent); }
+.eb { padding: 3px 9px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; border-radius: 2px; font-size: 9px; font-family: inherit; }
+.eb:hover { background: #0a1a2a; }
+.eb.red { border-color: var(--danger); color: var(--danger); }
 
-/* ── Map ── */
+/* Map */
 .map-wrap { position: relative; display: flex; flex-direction: column; }
-#map { flex: 1; background: #050b12; }
-
-/* Map legend */
-.map-legend { position: absolute; bottom: 50px; right: 8px; background: rgba(13,21,32,.92); border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 10px; z-index: 1000; }
-.legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.legend-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+#map { flex: 1; background: #040a10; }
+.map-legend { position: absolute; bottom: 46px; right: 8px; background: rgba(8,12,16,.93); border: 1px solid var(--border); padding: 7px 9px; border-radius: 3px; font-size: 9px; z-index: 1000; pointer-events: none; }
+.lr { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.ls { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 /* Timeline */
-.timeline-bar { background: var(--panel); border-top: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 10px; }
-.tl-label { font-size: 10px; color: var(--dim); white-space: nowrap; }
+.tl { background: var(--panel); border-top: 1px solid var(--border); padding: 6px 12px; display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.tl-lb { font-size: 9px; color: var(--dim); white-space: nowrap; }
 #timeline { flex: 1; accent-color: var(--accent); }
-#time-display { font-size: 10px; color: var(--accent); min-width: 160px; text-align: right; }
-#speed-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 5px; border-radius: 3px; font-family: inherit; font-size: 10px; }
-#playback-btn { padding: 3px 10px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 11px; font-weight: bold; }
-#playback-btn.playing { background: var(--warn); }
+#tdisp { font-size: 9px; color: var(--accent); min-width: 155px; text-align: right; }
+#speed-sel { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 4px; border-radius: 2px; font-family: inherit; font-size: 9px; }
+#play-btn { padding: 3px 9px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 2px; font-family: inherit; font-size: 10px; font-weight: bold; }
+#play-btn.playing { background: var(--warn); }
 
-/* ── Right: telemetry + alerts + voice ── */
-.right-panel { display: flex; flex-direction: column; }
-
-/* Telemetry readout */
-.telem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px; }
-.tc { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 6px; }
-.tc-label { font-size: 9px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
-.tc-val   { font-size: 14px; color: var(--accent); margin-top: 1px; }
-.tc-unit  { font-size: 9px; color: var(--dim); }
-.tc.full  { grid-column: 1/-1; }
+/* Right panel sections */
+.track-section { flex-shrink: 0; }
+.tg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 6px; }
+.tc { background: var(--bg); border: 1px solid var(--border); border-radius: 2px; padding: 5px; }
+.tc.full { grid-column: 1/-1; }
+.tcl { font-size: 8px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+.tcv { font-size: 13px; color: var(--accent); margin-top: 1px; }
+.tcu { font-size: 8px; color: var(--dim); }
 
 /* Threat detail */
-.threat-detail { padding: 8px; border-top: 1px solid var(--border); }
-.td-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-.td-key { font-size: 10px; color: var(--dim); }
-.td-val { font-size: 10px; color: var(--text); }
-.conf-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
-.conf-fill { height: 100%; border-radius: 2px; background: var(--green); }
+.td { padding: 6px 8px; }
+.dr { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.dk { font-size: 9px; color: var(--dim); }
+.dv { font-size: 9px; }
+.conf-bar { height: 3px; background: var(--border); border-radius: 2px; margin: 3px 0 6px; }
+.conf-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+
+/* Recommendation box */
+.rec-box { margin: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 7px; font-size: 10px; flex-shrink: 0; }
+.rec-box.show { border-color: var(--warn); }
+.rec-title { font-size: 9px; color: var(--warn); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+#rec-text { color: var(--text); line-height: 1.5; white-space: pre-wrap; }
 
 /* Alert log */
-.alert-log { border-top: 1px solid var(--border); flex: 1; overflow-y: auto; }
-.alert-msg { padding: 4px 8px; border-bottom: 1px solid #0d1a24; font-size: 10px; }
-.alert-msg.THREAT  { border-left: 2px solid var(--danger); }
-.alert-msg.WARNING { border-left: 2px solid var(--warn); }
-.alert-msg.INFO    { border-left: 2px solid var(--accent); }
-.alert-msg.AI      { border-left: 2px solid var(--green); color: var(--text); }
-.alert-msg.OP      { border-left: 2px solid var(--dim); color: var(--green); }
-.alert-time { color: var(--dim); margin-right: 6px; }
+.alert-log { flex: 1; overflow-y: auto; }
+.am { padding: 3px 8px; border-bottom: 1px solid #0d1a24; font-size: 9px; }
+.am.THREAT  { border-left: 2px solid var(--danger); }
+.am.WARNING { border-left: 2px solid var(--warn); }
+.am.INFO    { border-left: 2px solid var(--accent); }
+.am.AI      { border-left: 2px solid var(--green); color: var(--text); }
+.am.OP      { border-left: 2px solid var(--dim); color: var(--green); }
+.am.DEPLOY  { border-left: 2px solid var(--patriot); color: var(--patriot); }
+.at { color: var(--dim); margin-right: 5px; }
 
-/* Voice section */
-.voice-section { border-top: 1px solid var(--border); padding: 8px; }
-.voice-modality { display: flex; gap: 4px; margin-bottom: 6px; }
-.mod-btn { flex: 1; padding: 4px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; border-radius: 3px; font-size: 9px; font-family: inherit; letter-spacing: 1px; transition: all .15s; }
-.mod-btn:hover { border-color: var(--text); color: var(--text); }
-.mod-btn.active { color: var(--bg); }
-.mod-btn.RF.active       { background: var(--rf);       border-color: var(--rf); }
-.mod-btn.ACOUSTIC.active { background: var(--acoustic); border-color: var(--acoustic); }
-.mod-btn.IMAGERY.active  { background: var(--imagery);  border-color: var(--imagery); color: #000; }
-.mod-btn.ALL.active      { background: var(--accent);   border-color: var(--accent); }
-.voice-controls { display: flex; gap: 6px; }
-#text-input { flex: 1; padding: 5px 7px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 11px; border-radius: 3px; }
-#text-input:focus { outline: none; border-color: var(--accent); }
-#voice-btn { padding: 5px 10px; background: var(--bg); border: 1px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 3px; font-size: 11px; font-family: inherit; }
-#voice-btn.recording { border-color: var(--danger); color: var(--danger); animation: blink .6s infinite; }
-#send-btn { padding: 5px 10px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 11px; font-weight: bold; }
+/* Voice */
+.vs { border-top: 1px solid var(--border); padding: 7px; flex-shrink: 0; }
+.vm { display: flex; gap: 3px; margin-bottom: 5px; }
+.mb { flex: 1; padding: 3px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; border-radius: 2px; font-size: 8px; font-family: inherit; letter-spacing: 1px; }
+.mb:hover { border-color: var(--text); color: var(--text); }
+.mb.act { color: var(--bg); }
+.mb.ALL.act      { background: var(--accent); border-color: var(--accent); }
+.mb.RF.act       { background: var(--rf);     border-color: var(--rf); }
+.mb.ACOUSTIC.act { background: var(--acoustic); border-color: var(--acoustic); }
+.mb.IMAGERY.act  { background: var(--imagery);  border-color: var(--imagery); color:#000; }
+.mb.ASSETS.act   { background: var(--warn);    border-color: var(--warn); }
+.vc { display: flex; gap: 5px; }
+#ti { flex: 1; padding: 4px 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 10px; border-radius: 2px; }
+#ti:focus { outline: none; border-color: var(--accent); }
+#vb { padding: 4px 9px; background: var(--bg); border: 1px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 2px; font-size: 10px; font-family: inherit; }
+#vb.rec { border-color: var(--danger); color: var(--danger); animation: blink .6s infinite; }
+#sb { padding: 4px 9px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 2px; font-family: inherit; font-size: 10px; font-weight: bold; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border); }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="dot red" id="threat-dot"></div>
+  <div class="dot r" id="alert-dot"></div>
   <h1>C-UAS C2</h1>
-  <span class="hdr-sep">|</span>
-  <div class="hdr-stat"><div class="dot green"></div><span id="friendly-count">0 FRIENDLY</span></div>
-  <div class="hdr-stat"><div class="dot red" id="threat-status-dot"></div><span id="threat-count">0 THREATS</span></div>
-  <div class="hdr-stat"><div class="dot green" id="sensor-dot"></div><span id="sensor-count">0 SENSORS</span></div>
-  <div class="hdr-right">
-    <span id="backend-info" title="Click to change">BACKEND: localhost:8000</span>
-    <span id="clock">--:--:--</span>
+  <div class="hd"><div class="dot g"></div><span id="h-friendly">0 FRIENDLY</span></div>
+  <div class="hd"><div class="dot r" id="h-threat-dot"></div><span id="h-threats">0 THREATS</span></div>
+  <div class="hd"><div class="dot g"></div><span id="h-sensors">0/0 SENSORS</span></div>
+  <div class="hd"><div class="dot g"></div><span id="h-assets">0 ASSETS</span></div>
+  <div class="hdr-r">
+    <span id="backend-info">BACKEND: localhost:8000</span>
+    <span id="clock">--:--:-- UTC</span>
   </div>
 </header>
 
 <div class="layout">
 
   <!-- ── Left panel ── -->
-  <div class="panel">
-    <div class="ptitle">Assets & Sensors</div>
-    <div class="pbody" id="left-panel-body">
-
-      <div class="section-hdr">Friendly UAS</div>
+  <div class="panel left">
+    <div class="ptitle">Assets &amp; Sensors</div>
+    <div class="pbody" id="lpb">
+      <div class="sec"><span>Friendly UAS</span></div>
       <div id="friendly-list"></div>
 
-      <div class="section-hdr" style="display:flex;justify-content:space-between">
-        <span>Threats</span>
-        <span id="threat-badge" style="color:var(--danger)"></span>
-      </div>
+      <div class="sec"><span>Threats</span><span id="threat-badge" style="color:var(--danger)"></span></div>
       <div id="threat-list"></div>
 
-      <div class="section-hdr">Sensor Network</div>
+      <div class="sec"><span>Response Assets</span></div>
+      <div id="asset-list"></div>
+
+      <div class="sec"><span>Sensor Network</span></div>
       <div id="sensor-list"></div>
     </div>
 
-    <!-- Sensor editor (shown when a sensor is selected) -->
-    <div class="sensor-editor" id="sensor-editor" style="display:none">
-      <div class="ptitle" style="margin:-8px -8px 8px">Sensor: <span id="editor-sensor-id">--</span></div>
-      <div class="editor-row">
-        <span class="editor-label">Bearing °</span>
-        <input class="editor-input" id="editor-orientation" type="number" min="0" max="359" placeholder="0-359">
-      </div>
-      <div class="editor-row">
-        <span class="editor-label">Type</span>
-        <select class="editor-input" id="editor-type">
+    <!-- Sensor editor -->
+    <div class="sed" id="sed" style="display:none">
+      <div class="ptitle" style="margin:-8px -8px 7px;font-size:9px">SENSOR: <span id="sed-id">--</span></div>
+      <div class="er"><span class="el">Bearing °</span><input class="ei" id="sed-bearing" type="number" min="0" max="359"></div>
+      <div class="er"><span class="el">Type</span>
+        <select class="ei" id="sed-type" onchange="sedTypeChange()">
           <option value="ACOUSTIC">ACOUSTIC</option>
           <option value="RF">RF</option>
           <option value="IMAGERY">IMAGERY</option>
         </select>
       </div>
-      <div class="editor-row" id="editor-modality-row" style="display:none">
-        <span class="editor-label">Modality</span>
-        <select class="editor-input" id="editor-modality">
-          <option value="EO">EO (Electro-Optical)</option>
-          <option value="IR">IR (Infrared)</option>
+      <div class="er" id="sed-mod-row" style="display:none"><span class="el">Modality</span>
+        <select class="ei" id="sed-modality">
+          <option value="EO">EO</option>
+          <option value="IR">IR</option>
         </select>
       </div>
-      <div class="editor-row">
-        <button class="editor-btn" onclick="applyEditorUpdate()">APPLY</button>
-        <button class="editor-btn danger" onclick="toggleSensorActive()">TOGGLE ACTIVE</button>
+      <div class="er">
+        <button class="eb" onclick="applyUpdate()">APPLY</button>
+        <button class="eb red" onclick="toggleActive()">TOGGLE</button>
       </div>
-      <div style="font-size:9px;color:var(--dim);margin-top:2px">Drag marker on map to reposition</div>
+      <div style="font-size:8px;color:var(--dim)">Drag marker to reposition</div>
     </div>
   </div>
 
   <!-- ── Map ── -->
   <div class="map-wrap">
     <div id="map"></div>
-
     <div class="map-legend">
-      <div class="legend-row"><div class="legend-swatch" style="background:var(--accent)"></div>Friendly UAS</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:var(--hostile)"></div>Hostile track</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:var(--rf)"></div>RF sensor</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:var(--acoustic)"></div>Acoustic sensor</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:var(--imagery)"></div>EO/IR sensor</div>
+      <div class="lr"><div class="ls" style="background:var(--accent)"></div>Friendly UAS</div>
+      <div class="lr"><div class="ls" style="background:var(--hostile);clip-path:polygon(50% 0%,100% 100%,0% 100%)"></div>Hostile track</div>
+      <div class="lr"><div class="ls" style="background:var(--uas-int)"></div>UAS Interceptor</div>
+      <div class="lr"><div class="ls" style="background:var(--cram);border-radius:2px"></div>C-RAM</div>
+      <div class="lr"><div class="ls" style="background:var(--patriot);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>Patriot</div>
+      <div class="lr"><div class="ls" style="background:var(--rf)"></div>RF sensor</div>
+      <div class="lr"><div class="ls" style="background:var(--acoustic)"></div>Acoustic sensor</div>
+      <div class="lr"><div class="ls" style="background:var(--imagery)"></div>EO/IR sensor</div>
     </div>
-
-    <div class="timeline-bar">
-      <span class="tl-label">PLAYBACK</span>
+    <div class="tl">
+      <span class="tl-lb">PLAYBACK</span>
       <input type="range" id="timeline" min="0" max="100" value="0" disabled>
-      <span id="time-display">-- : -- : --</span>
-      <select id="speed-select"><option value="1">1x</option><option value="5">5x</option><option value="30">30x</option></select>
-      <button id="playback-btn">▶ PLAY</button>
+      <span id="tdisp">-- : -- : --</span>
+      <select id="speed-sel"><option value="1">1x</option><option value="5">5x</option><option value="30">30x</option></select>
+      <button id="play-btn">▶ PLAY</button>
     </div>
   </div>
 
   <!-- ── Right panel ── -->
-  <div class="panel right">
+  <div class="panel right" style="display:flex;flex-direction:column">
     <div class="ptitle">Track Data</div>
 
-    <!-- Friendly drone telemetry -->
-    <div id="friendly-telem" style="display:none">
-      <div class="telem-grid">
-        <div class="tc"><div class="tc-label">Lat</div><div class="tc-val" id="t-lat">--</div></div>
-        <div class="tc"><div class="tc-label">Lon</div><div class="tc-val" id="t-lon">--</div></div>
-        <div class="tc"><div class="tc-label">Alt</div><div class="tc-val" id="t-alt">--</div><div class="tc-unit">m</div></div>
-        <div class="tc"><div class="tc-label">Speed</div><div class="tc-val" id="t-spd">--</div><div class="tc-unit">m/s</div></div>
-        <div class="tc"><div class="tc-label">Heading</div><div class="tc-val" id="t-hdg">--</div><div class="tc-unit">°</div></div>
-        <div class="tc"><div class="tc-label">Battery</div><div class="tc-val" id="t-bat">--</div><div class="tc-unit">%</div></div>
-        <div class="tc full"><div class="tc-label">Status</div><div class="tc-val" id="t-status" style="font-size:12px">--</div></div>
+    <!-- Friendly telemetry -->
+    <div id="ftel" style="display:none" class="track-section">
+      <div class="tg">
+        <div class="tc"><div class="tcl">Lat</div><div class="tcv" id="t-lat">--</div></div>
+        <div class="tc"><div class="tcl">Lon</div><div class="tcv" id="t-lon">--</div></div>
+        <div class="tc"><div class="tcl">Alt</div><div class="tcv" id="t-alt">--</div><div class="tcu">m</div></div>
+        <div class="tc"><div class="tcl">Speed</div><div class="tcv" id="t-spd">--</div><div class="tcu">m/s</div></div>
+        <div class="tc"><div class="tcl">Heading</div><div class="tcv" id="t-hdg">--</div><div class="tcu">°</div></div>
+        <div class="tc"><div class="tcl">Battery</div><div class="tcv" id="t-bat">--</div><div class="tcu">%</div></div>
+        <div class="tc full"><div class="tcl">Status</div><div class="tcv" id="t-stat" style="font-size:11px">--</div></div>
       </div>
     </div>
 
-    <!-- Threat detail -->
-    <div id="threat-telem" style="display:none">
-      <div class="threat-detail">
-        <div class="td-row"><span class="td-key">THREAT ID</span><span class="td-val" id="th-id">--</span></div>
-        <div class="td-row"><span class="td-key">CLASS</span><span class="td-val" id="th-class">--</span></div>
-        <div class="td-row"><span class="td-key">EST. TYPE</span><span class="td-val" id="th-type">--</span></div>
-        <div class="td-row"><span class="td-key">STATUS</span><span class="td-val" id="th-status">--</span></div>
-        <div class="td-row"><span class="td-key">THREAT LVL</span><span class="td-val" id="th-level">--</span></div>
-        <div class="td-row"><span class="td-key">SENSORS</span><span class="td-val" id="th-sensors">--</span></div>
-        <div class="td-row"><span class="td-key">CONFIDENCE</span><span class="td-val" id="th-conf">--</span></div>
-        <div class="conf-bar"><div class="conf-fill" id="th-conf-bar" style="width:0%"></div></div>
-        <div class="td-row" style="margin-top:6px"><span class="td-key">LAT/LON</span><span class="td-val" id="th-pos">--</span></div>
-        <div class="td-row"><span class="td-key">ALT</span><span class="td-val" id="th-alt">--</span></div>
-        <div class="td-row"><span class="td-key">SPEED</span><span class="td-val" id="th-spd">--</span></div>
-        <div class="td-row"><span class="td-key">HEADING</span><span class="td-val" id="th-hdg">--</span></div>
+    <!-- Threat detail + confidence timeline -->
+    <div id="tdet" style="display:none" class="track-section">
+      <div class="td">
+        <div class="dr"><span class="dk">THREAT ID</span><span class="dv" id="th-id" style="color:var(--hostile)">--</span></div>
+        <div class="dr"><span class="dk">CLASS</span><span class="dv" id="th-cls">--</span></div>
+        <div class="dr"><span class="dk">EST. TYPE</span><span class="dv" id="th-typ">--</span></div>
+        <div class="dr"><span class="dk">STATUS</span><span class="dv" id="th-sta">--</span></div>
+        <div class="dr"><span class="dk">THREAT LVL</span><span class="dv" id="th-lv">--</span></div>
+        <div class="dr"><span class="dk">SENSORS</span><span class="dv" id="th-sen" style="font-size:8px">--</span></div>
+        <div class="dr"><span class="dk">CONFIDENCE</span><span class="dv" id="th-con">--</span></div>
+        <div class="conf-bar"><div class="conf-fill" id="th-cbar" style="width:0%"></div></div>
+        <div class="dr"><span class="dk">LAT / LON</span><span class="dv" id="th-pos" style="font-size:8px">--</span></div>
+        <div class="dr"><span class="dk">ALT</span><span class="dv" id="th-alt">--</span></div>
+        <div class="dr"><span class="dk">SPEED</span><span class="dv" id="th-spd">--</span></div>
+        <div class="dr"><span class="dk">HEADING</span><span class="dv" id="th-hdg">--</span></div>
+      </div>
+      <!-- Recommendation -->
+      <div class="rec-box" id="rec-box">
+        <div class="rec-title">⚡ Counter-Action</div>
+        <div id="rec-text" style="color:var(--dim);font-size:9px">Ask for recommendation…</div>
       </div>
     </div>
 
-    <div class="ptitle" style="margin-top:auto">Alert Log</div>
-    <div class="alert-log" id="alert-log"></div>
+    <div class="ptitle">Alert Log</div>
+    <div class="alert-log" id="alog"></div>
 
     <!-- Voice -->
-    <div class="voice-section">
-      <div class="ptitle" style="margin:-8px -8px 6px">Command Interface</div>
-      <div class="voice-modality">
-        <button class="mod-btn ALL active" data-mode="ALL" onclick="setModality(this)">ALL</button>
-        <button class="mod-btn RF" data-mode="RF" onclick="setModality(this)">RF</button>
-        <button class="mod-btn ACOUSTIC" data-mode="ACOUSTIC" onclick="setModality(this)">ACOUSTIC</button>
-        <button class="mod-btn IMAGERY" data-mode="IMAGERY" onclick="setModality(this)">EO/IR</button>
+    <div class="vs">
+      <div class="ptitle" style="margin:-7px -7px 5px">Command Interface</div>
+      <div class="vm">
+        <button class="mb ALL act" data-m="ALL"      onclick="setMod(this)">ALL</button>
+        <button class="mb RF"      data-m="RF"       onclick="setMod(this)">RF</button>
+        <button class="mb ACOUSTIC"data-m="ACOUSTIC" onclick="setMod(this)">ACOUSTIC</button>
+        <button class="mb IMAGERY" data-m="IMAGERY"  onclick="setMod(this)">EO/IR</button>
+        <button class="mb ASSETS"  data-m="ASSETS"   onclick="setMod(this)">ASSETS</button>
       </div>
-      <div class="voice-controls">
-        <input type="text" id="text-input" placeholder="Command or voice...">
-        <button id="voice-btn">🎤</button>
-        <button id="send-btn">TX</button>
+      <div class="vc">
+        <input type="text" id="ti" placeholder="Command or voice...">
+        <button id="vb">🎤</button>
+        <button id="sb">TX</button>
       </div>
     </div>
   </div>
@@ -307,510 +310,445 @@ header h1 { color: var(--danger); font-size: 14px; letter-spacing: 3px; }
 <script>
 // ── Backend config ─────────────────────────────────────────────────────────
 const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-let BACKEND = isLocal ? 'http://localhost:8000' : (prompt('Backend URL:', 'http://localhost:8000') || 'http://localhost:8000');
-document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND.replace('http://', '')}`;
+let BACKEND = isLocal ? 'http://localhost:8000'
+  : (prompt('Backend URL:', 'http://localhost:8000') || 'http://localhost:8000');
+document.getElementById('backend-info').textContent = 'BACKEND: ' + BACKEND.replace(/https?:\/\//,'');
 document.getElementById('backend-info').onclick = () => {
   const u = prompt('Backend URL:', BACKEND);
-  if (u) { BACKEND = u; document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND.replace('http://','')}`; loadAll(); }
+  if (u) { BACKEND = u; document.getElementById('backend-info').textContent = 'BACKEND: '+BACKEND.replace(/https?:\/\//,''); loadAll(); }
 };
-const api = path => BACKEND + path;
+const api = p => BACKEND + p;
 
 // ── Clock ──────────────────────────────────────────────────────────────────
-setInterval(() => {
-  document.getElementById('clock').textContent = new Date().toUTCString().slice(17, 25) + ' UTC';
-}, 1000);
+setInterval(() => document.getElementById('clock').textContent =
+  new Date().toUTCString().slice(17,25) + ' UTC', 1000);
 
 // ── Map ────────────────────────────────────────────────────────────────────
-const map = L.map('map', { center: [38.905, -77.037], zoom: 13, zoomControl: true });
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; CartoDB', maxZoom: 19
-}).addTo(map);
+const map = L.map('map', { center: [38.905,-77.037], zoom: 13 });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  { attribution:'&copy; CartoDB', maxZoom:19 }).addTo(map);
 
 // ── State ──────────────────────────────────────────────────────────────────
-let sensors = [], threats = [], drones = [];
-let droneMarkers = {}, droneTrails = {};
-let threatMarkers = {}, threatTrails = {};
-let sensorMarkers = {}, sensorOverlays = {};
-let selectedSensor = null, selectedDrone = null, selectedThreat = null;
-let telemetryData = [], playbackIndex = 0, playbackTimer = null, isPlaying = false;
-let currentModality = 'ALL';
-let conversationHistory = [];
+let sensors=[], threats=[], drones=[], responseAssets=[];
+let droneMarkers={}, droneTrails={};
+let threatMarkers={}, threatTrails={};
+let sensorMarkers={}, sensorOverlays={};
+let assetMarkers={}, assetRangeCircles={};
+let selSensor=null, selDrone=null, selThreat=null;
+let telData=[], playIdx=0, playTimer=null, playing=false;
+let modality='ALL', convHistory=[];
 
-// ── Icons ──────────────────────────────────────────────────────────────────
-function friendlyIcon() {
+// ── Icon helpers ───────────────────────────────────────────────────────────
+const friendlyIcon = () => L.divIcon({
+  html:'<div style="width:13px;height:13px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
+  iconSize:[13,13], iconAnchor:[6,6], className:''
+});
+const threatIcon = lvl => {
+  const c = lvl==='HIGH'?'#ff4422':lvl==='MEDIUM'?'#ffaa00':'#ff8800';
   return L.divIcon({
-    html: '<div style="width:14px;height:14px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
-    iconSize: [14,14], iconAnchor: [7,7], className: ''
+    html:`<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid ${c};filter:drop-shadow(0 0 4px ${c})"></div>`,
+    iconSize:[16,14], iconAnchor:[8,14], className:''
   });
-}
-function threatIcon(level) {
-  const c = level === 'HIGH' ? '#ff4422' : level === 'MEDIUM' ? '#ffaa00' : '#ff8800';
+};
+const sensorIcon = (type, active) => {
+  const C={RF:'#cc44ff',ACOUSTIC:'#00ffcc',IMAGERY:'#ffdd00'};
+  const S={RF:'▲',ACOUSTIC:'◉',IMAGERY:'◈'};
+  const c = active ? (C[type]||'#888') : '#2a3a4a';
   return L.divIcon({
-    html: `<div style="width:14px;height:14px;background:${c};border:2px solid #fff;clip-path:polygon(50% 0%,100% 100%,0% 100%);box-shadow:0 0 8px ${c}"></div>`,
-    iconSize: [14,14], iconAnchor: [7,10], className: ''
+    html:`<div style="color:${c};font-size:17px;text-shadow:0 0 5px ${c};cursor:pointer;line-height:1">${S[type]||'●'}</div>`,
+    iconSize:[18,18], iconAnchor:[9,9], className:''
   });
-}
-function sensorIcon(type, active) {
-  const colors = { RF: '#cc44ff', ACOUSTIC: '#00ffcc', IMAGERY: '#ffdd00' };
-  const shapes = { RF: '▲', ACOUSTIC: '◉', IMAGERY: '◈' };
-  const c = active ? (colors[type] || '#888') : '#333';
+};
+const assetIcon = type => {
+  const cfg = {
+    UAS_INTERCEPTOR: { color:'#44aaff', shape:'◆', size:16 },
+    CRAM:            { color:'#00ff88', shape:'▪', size:20 },
+    PATRIOT:         { color:'#ffcc00', shape:'★', size:18 },
+  }[type] || { color:'#888', shape:'●', size:14 };
   return L.divIcon({
-    html: `<div style="color:${c};font-size:18px;text-shadow:0 0 6px ${c};cursor:pointer">${shapes[type]||'●'}</div>`,
-    iconSize: [20,20], iconAnchor: [10,10], className: ''
+    html:`<div style="color:${cfg.color};font-size:${cfg.size}px;text-shadow:0 0 6px ${cfg.color};line-height:1;cursor:pointer">${cfg.shape}</div>`,
+    iconSize:[22,22], iconAnchor:[11,11], className:''
   });
-}
+};
 
-// ── Sensor FOV cone ────────────────────────────────────────────────────────
-function sensorConeLatLngs(lat, lon, orientationDeg, fovDeg, rangeM) {
-  if (fovDeg >= 360) return null; // circle instead
-  const steps = 24;
-  const half = fovDeg / 2;
-  const pts = [[lat, lon]];
-  for (let i = 0; i <= steps; i++) {
-    const deg = (orientationDeg - half) + (fovDeg * i / steps);
-    const rad = deg * Math.PI / 180;
-    const dlat = (rangeM * Math.cos(rad)) / 111320;
-    const dlon = (rangeM * Math.sin(rad)) / (111320 * Math.cos(lat * Math.PI / 180));
-    pts.push([lat + dlat, lon + dlon]);
+// ── Sensor FOV helpers ─────────────────────────────────────────────────────
+function conePoints(lat, lon, bearing, fov, rangeM) {
+  if (fov >= 360) return null;
+  const steps=24, half=fov/2, pts=[[lat,lon]];
+  for (let i=0; i<=steps; i++) {
+    const deg = (bearing-half) + fov*i/steps;
+    const rad = deg*Math.PI/180;
+    const dlat = rangeM*Math.cos(rad)/111320;
+    const dlon = rangeM*Math.sin(rad)/(111320*Math.cos(lat*Math.PI/180));
+    pts.push([lat+dlat, lon+dlon]);
   }
   return pts;
 }
+const sColor = t => ({RF:'#cc44ff',ACOUSTIC:'#00ffcc',IMAGERY:'#ffdd00'}[t]||'#888');
 
-function sensorColor(type) {
-  return { RF: '#cc44ff', ACOUSTIC: '#00ffcc', IMAGERY: '#ffdd00' }[type] || '#888';
+// ── Draw sensor ────────────────────────────────────────────────────────────
+function drawSensor(s) {
+  const {latitude:lat, longitude:lon} = s.position;
+  const col = sColor(s.type), alpha = s.active ? 0.18 : 0.05;
+  if (sensorOverlays[s.sensorId]) sensorOverlays[s.sensorId].remove();
+  const pts = conePoints(lat, lon, s.orientation, s.fov, s.range);
+  sensorOverlays[s.sensorId] = pts
+    ? L.polygon(pts, {color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active?.5:.2}).addTo(map)
+    : L.circle([lat,lon], {radius:s.range, color:col, fillColor:col, fillOpacity:alpha, weight:1, opacity:s.active?.5:.2}).addTo(map);
+
+  if (sensorMarkers[s.sensorId]) sensorMarkers[s.sensorId].remove();
+  const m = L.marker([lat,lon], {icon:sensorIcon(s.type,s.active), draggable:true, title:s.name}).addTo(map);
+  m.on('dragend', e => {
+    const {lat:nl, lng:nl2} = e.target.getLatLng();
+    fetch(api(`/api/sensors/${s.sensorId}`), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({position:{latitude:nl,longitude:nl2}})})
+      .then(r=>r.json()).then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); alertLog(u.name+' repositioned','INFO'); });
+  });
+  m.on('click', () => selectSensor(s.sensorId));
+  m.bindTooltip(`<b>${s.name}</b><br>${s.type} · ${s.orientation}° · ${s.range}m<br>${s.active?'ACTIVE':'INACTIVE'}`, {direction:'top'});
+  sensorMarkers[s.sensorId] = m;
 }
 
-function drawSensor(s) {
-  const lat = s.position.latitude, lon = s.position.longitude;
-  const color = sensorColor(s.type);
-  const alpha = s.active ? 0.18 : 0.06;
+// ── Draw asset on map ──────────────────────────────────────────────────────
+function drawAsset(a) {
+  const {latitude:lat, longitude:lon} = a.position;
+  const cap = a.capabilities||{};
+  const rangeM = cap.maxRangeM||0;
+  const colors = {UAS_INTERCEPTOR:'#44aaff',CRAM:'#00ff88',PATRIOT:'#ffcc00'};
+  const col = colors[a.type]||'#888';
+  const statusAlpha = a.status==='ENGAGED' ? 0.22 : 0.08;
 
-  // Overlay (cone or circle)
-  if (sensorOverlays[s.sensorId]) sensorOverlays[s.sensorId].remove();
-  if (s.fov >= 360) {
-    sensorOverlays[s.sensorId] = L.circle([lat, lon], {
-      radius: s.range, color, fillColor: color, fillOpacity: alpha,
-      weight: 1, opacity: s.active ? 0.5 : 0.2
-    }).addTo(map);
-  } else {
-    const pts = sensorConeLatLngs(lat, lon, s.orientation, s.fov, s.range);
-    sensorOverlays[s.sensorId] = L.polygon(pts, {
-      color, fillColor: color, fillOpacity: alpha,
-      weight: 1, opacity: s.active ? 0.5 : 0.2
-    }).addTo(map);
-  }
-
-  // Draggable marker
-  if (sensorMarkers[s.sensorId]) sensorMarkers[s.sensorId].remove();
-  const marker = L.marker([lat, lon], {
-    icon: sensorIcon(s.type, s.active),
-    draggable: true,
-    title: s.name,
+  if (assetRangeCircles[a.assetId]) assetRangeCircles[a.assetId].remove();
+  assetRangeCircles[a.assetId] = L.circle([lat,lon], {
+    radius:rangeM, color:col, fillColor:col, fillOpacity:statusAlpha,
+    weight:1, opacity:.35, dashArray:'4 4'
   }).addTo(map);
 
-  marker.on('dragend', e => {
-    const { lat: newLat, lng: newLon } = e.target.getLatLng();
-    const patch = { position: { latitude: newLat, longitude: newLon } };
-    fetch(api(`/api/sensors/${s.sensorId}`), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
-    }).then(r => r.json()).then(updated => {
-      sensors = sensors.map(x => x.sensorId === updated.sensorId ? updated : x);
-      drawSensor(updated);
-      alertLog(`${updated.name} repositioned`, 'INFO');
-    });
-  });
-
-  marker.on('click', () => selectSensor(s.sensorId));
-  sensorMarkers[s.sensorId] = marker;
-
-  // Bind tooltip
-  marker.bindTooltip(
-    `<b>${s.name}</b><br>Bearing: ${s.orientation}°<br>Range: ${s.range}m<br>${s.active ? 'ACTIVE' : 'INACTIVE'}`,
-    { className: 'leaflet-tooltip', direction: 'top' }
-  );
+  if (assetMarkers[a.assetId]) assetMarkers[a.assetId].remove();
+  const m = L.marker([lat,lon], {icon:assetIcon(a.type), title:a.name}).addTo(map);
+  m.bindTooltip(`<b>${a.name}</b><br>Status: ${a.status}<br>Range: ${(rangeM/1000).toFixed(0)}km<br>Pk: ${cap.pkill||0}<br>${a.status_detail||''}`, {direction:'top'});
+  m.on('click', () => selectAsset(a.assetId));
+  assetMarkers[a.assetId] = m;
 }
 
-// ── Load all data ──────────────────────────────────────────────────────────
-async function loadAll() {
-  try {
-    const [droneRes, sensorRes, threatRes] = await Promise.all([
-      fetch(api('/api/drones')).then(r => r.json()),
-      fetch(api('/api/sensors')).then(r => r.json()),
-      fetch(api('/api/threats')).then(r => r.json()),
-    ]);
-
-    drones = droneRes.drones || [];
-    sensors = sensorRes.sensors || [];
-    threats = threatRes.threats || [];
-
-    document.getElementById('friendly-count').textContent = `${drones.length} FRIENDLY`;
-    document.getElementById('sensor-count').textContent = `${sensors.filter(s=>s.active).length}/${sensors.length} SENSORS`;
-    renderAssetPanel();
-    renderSensorPanel();
-    renderThreatPanel();
-    drawAllSensors();
-    drawAllThreats();
-    alertLog(`Data loaded: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors`, 'INFO');
-  } catch (e) {
-    alertLog(`Load failed: ${e.message}`, 'WARNING');
-  }
-}
-
-// ── Render lists ───────────────────────────────────────────────────────────
-function renderAssetPanel() {
-  const el = document.getElementById('friendly-list');
-  el.innerHTML = drones.length === 0
-    ? '<div style="padding:8px 10px;color:var(--dim);font-size:10px">No friendly assets</div>'
-    : drones.map(id => `
-      <div class="asset-item ${selectedDrone===id?'active':''}" onclick="selectDrone('${id}')">
-        <span class="asset-icon">✈</span>
-        <div><div class="asset-name friendly">${id}</div><div class="asset-meta">FRIENDLY UAS</div></div>
-      </div>`).join('');
-}
-
-function renderThreatPanel() {
-  const el = document.getElementById('threat-list');
-  const badge = document.getElementById('threat-badge');
-  badge.textContent = threats.filter(t => t.status === 'TRACKING').length || '';
-  document.getElementById('threat-count').textContent = `${threats.length} THREATS`;
-  if (!threats.length) {
-    el.innerHTML = '<div style="padding:8px 10px;color:var(--dim);font-size:10px">No threats detected</div>';
-    return;
-  }
-  el.innerHTML = threats.map(t => `
-    <div class="asset-item threat-item ${t.threatLevel.toLowerCase()} ${selectedThreat===t.threatId?'active':''}"
-         onclick="selectThreat('${t.threatId}')">
-      <span class="asset-icon" style="color:${t.threatLevel==='HIGH'?'var(--danger)':'var(--warn)'}">▲</span>
-      <div style="flex:1">
-        <div class="asset-name hostile">${t.threatId}</div>
-        <div class="asset-meta">${t.estimatedType}</div>
-      </div>
-      <span class="badge ${t.threatLevel.toLowerCase()}">${t.threatLevel}</span>
-    </div>`).join('');
-}
-
-function renderSensorPanel() {
-  const el = document.getElementById('sensor-list');
-  el.innerHTML = sensors.map(s => `
-    <div class="sensor-item ${!s.active?'inactive':''} ${selectedSensor===s.sensorId?'selected':''}"
-         onclick="selectSensor('${s.sensorId}')">
-      <div class="s-indicator ${s.type} ${!s.active?'inactive':''}"></div>
-      <div style="flex:1">
-        <div class="s-name">${s.name}</div>
-        <div class="s-meta">${s.type} · ${s.orientation}° · ${s.range}m</div>
-      </div>
-      ${s.detections.length ? `<span class="badge tracking">${s.detections.length} DET</span>` : ''}
-    </div>`).join('');
-}
-
-// ── Draw all threats on map ────────────────────────────────────────────────
+// ── Draw threats ───────────────────────────────────────────────────────────
 function drawAllThreats() {
   threats.forEach(t => {
-    if (!t.track || !t.track.length) return;
-    const latest = t.track[t.track.length - 1];
-
-    if (threatMarkers[t.threatId]) threatMarkers[t.threatId].remove();
+    if (!t.track?.length) return;
+    const latest = t.track[t.track.length-1];
     if (threatTrails[t.threatId]) threatTrails[t.threatId].remove();
-
-    // Trail
-    const pts = t.track.map(p => [p.latitude, p.longitude]);
-    threatTrails[t.threatId] = L.polyline(pts, { color: '#ff4422', weight: 2, opacity: 0.7, dashArray: '4 3' }).addTo(map);
-
-    // Marker
-    const m = L.marker([latest.latitude, latest.longitude], { icon: threatIcon(t.threatLevel) }).addTo(map);
-    m.bindTooltip(`<b>${t.threatId}</b><br>${t.classification}<br>Conf: ${Math.round(t.confidence*100)}%<br>${t.estimatedType}`, { direction: 'top' });
+    if (threatMarkers[t.threatId]) threatMarkers[t.threatId].remove();
+    const pts = t.track.map(p=>[p.latitude,p.longitude]);
+    threatTrails[t.threatId] = L.polyline(pts, {color:'#ff4422',weight:2,opacity:.7,dashArray:'4 3'}).addTo(map);
+    const m = L.marker([latest.latitude,latest.longitude], {icon:threatIcon(t.threatLevel)}).addTo(map);
+    const conf = Math.round((latest.confidence||t.confidence||0)*100);
+    m.bindTooltip(`<b>${t.threatId}</b><br>${t.classification}<br>Speed: ${latest.speed} m/s<br>Conf: ${conf}%`, {direction:'top'});
     m.on('click', () => selectThreat(t.threatId));
     threatMarkers[t.threatId] = m;
   });
 }
 
-function drawAllSensors() {
-  sensors.forEach(s => drawSensor(s));
+// ── Load all data ──────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [dr,sr,tr,ar] = await Promise.all([
+      fetch(api('/api/drones')).then(r=>r.json()),
+      fetch(api('/api/sensors')).then(r=>r.json()),
+      fetch(api('/api/threats')).then(r=>r.json()),
+      fetch(api('/api/response-assets')).then(r=>r.json()),
+    ]);
+    drones         = dr.drones||[];
+    sensors        = sr.sensors||[];
+    threats        = tr.threats||[];
+    responseAssets = ar.assets||[];
+
+    document.getElementById('h-friendly').textContent = `${drones.length} FRIENDLY`;
+    document.getElementById('h-threats').textContent  = `${threats.length} THREATS`;
+    document.getElementById('h-sensors').textContent  = `${sensors.filter(s=>s.active).length}/${sensors.length} SENSORS`;
+    document.getElementById('h-assets').textContent   = `${responseAssets.filter(a=>a.status==='READY').length} ASSETS READY`;
+    if (threats.some(t=>t.threatLevel==='HIGH')) {
+      document.getElementById('alert-dot').className='dot r';
+    }
+
+    renderFriendlyList(); renderThreatList(); renderAssetList(); renderSensorList();
+    sensors.forEach(drawSensor);
+    responseAssets.forEach(drawAsset);
+    drawAllThreats();
+    alertLog(`Loaded: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
+  } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
 }
 
-// ── Select friendly drone ──────────────────────────────────────────────────
-async function selectDrone(droneId) {
-  selectedDrone = droneId;
-  selectedThreat = null;
-  renderAssetPanel();
-  renderThreatPanel();
-  document.getElementById('friendly-telem').style.display = '';
-  document.getElementById('threat-telem').style.display = 'none';
-
-  const res = await fetch(api(`/api/telemetry/${droneId}`));
-  const data = await res.json();
-  telemetryData = data.telemetry || [];
-  if (!telemetryData.length) return;
-
-  stopPlayback();
-  playbackIndex = 0;
-  const sl = document.getElementById('timeline');
-  sl.max = telemetryData.length - 1;
-  sl.value = 0;
-  sl.disabled = false;
-  updateFriendlyDisplay(telemetryData[0]);
-  moveFriendlyMarker(droneId, telemetryData[0]);
-  alertLog(`Tracking ${droneId} — ${telemetryData.length} telemetry points`, 'INFO');
+// ── Render lists ───────────────────────────────────────────────────────────
+function renderFriendlyList() {
+  document.getElementById('friendly-list').innerHTML = drones.length===0
+    ? '<div style="padding:6px 9px;color:var(--dim);font-size:9px">No assets</div>'
+    : drones.map(id=>`<div class="item ${selDrone===id?'sel':''}" onclick="selectDrone('${id}')">
+        <span class="item-icon" style="color:var(--accent)">✈</span>
+        <div><div class="item-name c-friendly">${id}</div><div class="item-meta">FRIENDLY UAS</div></div>
+      </div>`).join('');
 }
 
-function moveFriendlyMarker(droneId, row) {
-  const lat = row.latitude || row.lat, lon = row.longitude || row.lon;
-  if (!lat || !lon) return;
-  if (!droneMarkers[droneId]) {
-    droneMarkers[droneId] = L.marker([lat, lon], { icon: friendlyIcon() }).addTo(map)
-      .bindTooltip(droneId, { permanent: false });
-  } else {
-    droneMarkers[droneId].setLatLng([lat, lon]);
-  }
-  map.panTo([lat, lon], { animate: true, duration: 0.3 });
+function renderThreatList() {
+  document.getElementById('threat-badge').textContent = threats.filter(t=>t.status==='TRACKING').length||'';
+  document.getElementById('threat-list').innerHTML = threats.length===0
+    ? '<div style="padding:6px 9px;color:var(--dim);font-size:9px">No threats</div>'
+    : threats.map(t=>{
+        const latest = t.track?.[t.track.length-1]||{};
+        const conf = Math.round((latest.confidence||t.confidence||0)*100);
+        return `<div class="item ${selThreat===t.threatId?'sel':''}" onclick="selectThreat('${t.threatId}')">
+          <span class="item-icon" style="color:${t.threatLevel==='HIGH'?'var(--danger)':'var(--warn)'}">▲</span>
+          <div style="flex:1">
+            <div class="item-name c-hostile">${t.threatId}</div>
+            <div class="item-meta">${t.estimatedType} · ${latest.speed||'?'} m/s · ${conf}% conf</div>
+          </div>
+          <span class="badge ${t.threatLevel==='HIGH'?'bh':'bm'}">${t.threatLevel}</span>
+        </div>`;
+      }).join('');
 }
 
-function updateFriendlyDisplay(row) {
-  const set = (id, v, d=2) => { const e = document.getElementById(id); if(e) e.textContent = v!=null?(typeof v==='number'?v.toFixed(d):v):'--'; };
-  set('t-lat', row.latitude || row.lat, 6);
-  set('t-lon', row.longitude || row.lon, 6);
-  set('t-alt', row.altitude || row.alt, 0);
-  set('t-spd', row.speed, 1);
-  set('t-hdg', row.heading, 0);
-  set('t-bat', row.battery, 0);
-  const s = row.status || 'ACTIVE';
-  const el = document.getElementById('t-status');
-  el.textContent = s;
-  el.style.color = s === 'AIRBORNE' ? 'var(--green)' : s === 'WARNING' ? 'var(--warn)' : 'var(--accent)';
+function renderAssetList() {
+  const icons={UAS_INTERCEPTOR:'◆',CRAM:'▪',PATRIOT:'★'};
+  const colors={UAS_INTERCEPTOR:'var(--uas-int)',CRAM:'var(--cram)',PATRIOT:'var(--patriot)'};
+  document.getElementById('asset-list').innerHTML = responseAssets.map(a=>`
+    <div class="item" onclick="selectAsset('${a.assetId}')">
+      <span class="item-icon" style="color:${colors[a.type]||'#888'}">${icons[a.type]||'●'}</span>
+      <div style="flex:1">
+        <div class="item-name" style="color:${colors[a.type]||'#888'}">${a.name}</div>
+        <div class="item-meta">${a.type} · ${((a.capabilities?.maxRangeM||0)/1000).toFixed(0)}km range</div>
+      </div>
+      <span class="badge ${a.status==='READY'?'bl':a.status==='ENGAGED'?'beng':'bm'}">${a.status}</span>
+    </div>`).join('');
 }
 
-// ── Select threat ──────────────────────────────────────────────────────────
-function selectThreat(threatId) {
-  selectedThreat = threatId;
-  selectedDrone = null;
-  renderThreatPanel();
-  renderAssetPanel();
-  document.getElementById('threat-telem').style.display = '';
-  document.getElementById('friendly-telem').style.display = 'none';
+function renderSensorList() {
+  document.getElementById('sensor-list').innerHTML = sensors.map(s=>`
+    <div class="item ${!s.active?'':''}  ${selSensor===s.sensorId?'sel':''}" onclick="selectSensor('${s.sensorId}')">
+      <div class="sind ${s.type} ${!s.active?'off':''}"></div>
+      <div style="flex:1">
+        <div class="item-name" style="color:${s.active?'var(--text)':'var(--dim)'}">${s.name}</div>
+        <div class="item-meta">${s.type} · ${s.orientation}° · ${s.range}m</div>
+      </div>
+      ${s.detections.length?`<span class="badge bh">${s.detections.length}</span>`:''}
+    </div>`).join('');
+}
 
-  const t = threats.find(x => x.threatId === threatId);
-  if (!t) return;
-  document.getElementById('th-id').textContent = t.threatId;
-  document.getElementById('th-class').textContent = t.classification;
-  document.getElementById('th-type').textContent = t.estimatedType || '--';
-  document.getElementById('th-status').textContent = t.status;
-  document.getElementById('th-level').textContent = t.threatLevel;
-  document.getElementById('th-sensors').textContent = (t.detectedBy || []).join(', ');
-  const pct = Math.round((t.confidence || 0) * 100);
-  document.getElementById('th-conf').textContent = `${pct}%`;
-  document.getElementById('th-conf-bar').style.width = `${pct}%`;
-  document.getElementById('th-conf-bar').style.background =
-    pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warn)' : 'var(--green)';
+// ── Select handlers ────────────────────────────────────────────────────────
+async function selectDrone(id) {
+  selDrone=id; selThreat=null; selSensor=null;
+  renderFriendlyList(); renderThreatList();
+  document.getElementById('ftel').style.display='';
+  document.getElementById('tdet').style.display='none';
+  document.getElementById('sed').style.display='none';
 
-  if (t.track && t.track.length) {
-    const latest = t.track[t.track.length - 1];
-    document.getElementById('th-pos').textContent = `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}`;
-    document.getElementById('th-alt').textContent = `${latest.altitude}m`;
-    document.getElementById('th-spd').textContent = `${latest.speed} m/s`;
-    document.getElementById('th-hdg').textContent = `${latest.heading}°`;
+  const r = await fetch(api(`/api/telemetry/${id}`));
+  const d = await r.json();
+  telData = d.telemetry||[];
+  if (!telData.length) return;
+
+  stopPlay(); playIdx=0;
+  const sl=document.getElementById('timeline');
+  sl.max=telData.length-1; sl.value=0; sl.disabled=false;
+  showFriendlyTelem(telData[0]);
+  moveFriendlyMarker(id, telData[0]);
+  alertLog(`Tracking ${id} — ${telData.length} pts`,'INFO');
+}
+
+function moveFriendlyMarker(id, row) {
+  const lat=row.latitude||row.lat, lon=row.longitude||row.lon;
+  if (!lat||!lon) return;
+  if (!droneMarkers[id]) droneMarkers[id]=L.marker([lat,lon],{icon:friendlyIcon()}).addTo(map).bindTooltip(id);
+  else droneMarkers[id].setLatLng([lat,lon]);
+  map.panTo([lat,lon],{animate:true,duration:.3});
+}
+
+function showFriendlyTelem(r) {
+  const s=(id,v,d=2)=>{const e=document.getElementById(id);if(e)e.textContent=v!=null?(typeof v==='number'?v.toFixed(d):v):'--';};
+  s('t-lat',r.latitude||r.lat,6); s('t-lon',r.longitude||r.lon,6);
+  s('t-alt',r.altitude,0); s('t-spd',r.speed,1); s('t-hdg',r.heading,0); s('t-bat',r.battery,0);
+  const st=r.status||'ACTIVE';
+  document.getElementById('t-stat').textContent=st;
+  document.getElementById('t-stat').style.color=st==='AIRBORNE'?'var(--green)':st==='WARNING'?'var(--warn)':'var(--accent)';
+}
+
+function selectThreat(id) {
+  selThreat=id; selDrone=null; selSensor=null;
+  renderThreatList(); renderFriendlyList();
+  document.getElementById('tdet').style.display='';
+  document.getElementById('ftel').style.display='none';
+  document.getElementById('sed').style.display='none';
+
+  const t=threats.find(x=>x.threatId===id); if(!t) return;
+  const latest=t.track?.[t.track.length-1]||{};
+  const conf=Math.round((latest.confidence||t.confidence||0)*100);
+
+  document.getElementById('th-id').textContent=t.threatId;
+  document.getElementById('th-cls').textContent=t.classification;
+  document.getElementById('th-typ').textContent=t.estimatedType||'--';
+  document.getElementById('th-sta').textContent=t.status;
+  document.getElementById('th-lv').textContent=t.threatLevel;
+  document.getElementById('th-sen').textContent=(t.detectedBy||[]).join(', ');
+  document.getElementById('th-con').textContent=conf+'%';
+  document.getElementById('th-cbar').style.width=conf+'%';
+  document.getElementById('th-cbar').style.background=conf>80?'var(--danger)':conf>50?'var(--warn)':'var(--green)';
+  if (latest.latitude) {
+    document.getElementById('th-pos').textContent=`${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}`;
+    document.getElementById('th-alt').textContent=latest.altitude+'m';
+    document.getElementById('th-spd').textContent=latest.speed+' m/s';
+    document.getElementById('th-hdg').textContent=latest.heading+'°';
     map.panTo([latest.latitude, latest.longitude]);
   }
-
-  alertLog(`Focused on ${threatId} — ${t.classification} [${t.threatLevel}] confidence ${pct}%`, 'THREAT');
+  alertLog(`Focused ${id} — ${t.classification} [${t.threatLevel}] ${conf}% conf, ${latest.speed} m/s`,'THREAT');
 }
 
-// ── Select sensor ──────────────────────────────────────────────────────────
-function selectSensor(sensorId) {
-  selectedSensor = sensorId;
-  renderSensorPanel();
-  const s = sensors.find(x => x.sensorId === sensorId);
-  if (!s) return;
+function selectAsset(id) {
+  const a = responseAssets.find(x=>x.assetId===id); if(!a) return;
+  map.panTo([a.position.latitude, a.position.longitude]);
+  alertLog(`${a.name} — ${a.type} · Status: ${a.status} · ${a.status_detail||''}`, 'INFO');
+}
 
-  document.getElementById('sensor-editor').style.display = '';
-  document.getElementById('editor-sensor-id').textContent = s.sensorId;
-  document.getElementById('editor-orientation').value = s.orientation;
-  document.getElementById('editor-type').value = s.type;
-
-  const modRow = document.getElementById('editor-modality-row');
-  if (s.type === 'IMAGERY') {
-    modRow.style.display = '';
-    document.getElementById('editor-modality').value = s.modality || 'EO';
-  } else {
-    modRow.style.display = 'none';
-  }
-
+// ── Sensor editor ──────────────────────────────────────────────────────────
+function selectSensor(id) {
+  selSensor=id; renderSensorList();
+  const s=sensors.find(x=>x.sensorId===id); if(!s) return;
+  document.getElementById('sed').style.display='';
+  document.getElementById('ftel').style.display='none';
+  document.getElementById('tdet').style.display='none';
+  document.getElementById('sed-id').textContent=id;
+  document.getElementById('sed-bearing').value=s.orientation;
+  document.getElementById('sed-type').value=s.type;
+  sedTypeChange();
+  if (s.type==='IMAGERY') document.getElementById('sed-modality').value=s.modality||'EO';
   map.panTo([s.position.latitude, s.position.longitude]);
 }
-
-document.getElementById('editor-type').addEventListener('change', e => {
-  document.getElementById('editor-modality-row').style.display =
-    e.target.value === 'IMAGERY' ? '' : 'none';
-});
-
-function applyEditorUpdate() {
-  if (!selectedSensor) return;
+function sedTypeChange() {
+  document.getElementById('sed-mod-row').style.display =
+    document.getElementById('sed-type').value==='IMAGERY' ? '' : 'none';
+}
+function applyUpdate() {
+  if (!selSensor) return;
   const patch = {
-    orientation: parseInt(document.getElementById('editor-orientation').value, 10),
-    type: document.getElementById('editor-type').value,
+    orientation: parseInt(document.getElementById('sed-bearing').value,10),
+    type: document.getElementById('sed-type').value,
   };
-  const type = patch.type;
-  if (type === 'IMAGERY') patch.modality = document.getElementById('editor-modality').value;
-
-  fetch(api(`/api/sensors/${selectedSensor}`), {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
-  }).then(r => r.json()).then(updated => {
-    sensors = sensors.map(s => s.sensorId === updated.sensorId ? updated : s);
-    drawSensor(updated);
-    renderSensorPanel();
-    alertLog(`${updated.name}: bearing ${updated.orientation}°, type ${updated.type}`, 'INFO');
-  });
+  if (patch.type==='IMAGERY') patch.modality=document.getElementById('sed-modality').value;
+  fetch(api(`/api/sensors/${selSensor}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
+    .then(r=>r.json()).then(u=>{ sensors=sensors.map(s=>s.sensorId===u.sensorId?u:s); drawSensor(u); renderSensorList(); alertLog(`${u.name}: bearing ${u.orientation}° type ${u.type}`,'INFO'); });
+}
+function toggleActive() {
+  if (!selSensor) return;
+  const s=sensors.find(x=>x.sensorId===selSensor); if(!s) return;
+  fetch(api(`/api/sensors/${selSensor}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!s.active})})
+    .then(r=>r.json()).then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); renderSensorList(); alertLog(`${u.name} ${u.active?'ACTIVATED':'DEACTIVATED'}`,u.active?'INFO':'WARNING'); });
 }
 
-function toggleSensorActive() {
-  if (!selectedSensor) return;
-  const s = sensors.find(x => x.sensorId === selectedSensor);
-  if (!s) return;
-  fetch(api(`/api/sensors/${selectedSensor}`), {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ active: !s.active })
-  }).then(r => r.json()).then(updated => {
-    sensors = sensors.map(x => x.sensorId === updated.sensorId ? updated : x);
-    drawSensor(updated);
-    renderSensorPanel();
-    alertLog(`${updated.name} ${updated.active ? 'ACTIVATED' : 'DEACTIVATED'}`, updated.active ? 'INFO' : 'WARNING');
-  });
+// ── Modality ───────────────────────────────────────────────────────────────
+function setMod(btn) {
+  document.querySelectorAll('.mb').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act'); modality=btn.dataset.m;
+  alertLog('Modality: '+modality,'INFO');
 }
 
-// ── Modality selector ──────────────────────────────────────────────────────
-function setModality(btn) {
-  document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentModality = btn.dataset.mode;
-  alertLog(`Command modality: ${currentModality}`, 'INFO');
-}
-
-// ── Timeline playback ──────────────────────────────────────────────────────
-document.getElementById('timeline').addEventListener('input', e => {
-  if (!telemetryData.length) return;
-  playbackIndex = parseInt(e.target.value);
-  updateFriendlyDisplay(telemetryData[playbackIndex]);
-  moveFriendlyMarker(selectedDrone, telemetryData[playbackIndex]);
-  document.getElementById('time-display').textContent = fmtTime(telemetryData[playbackIndex]);
+// ── Timeline ───────────────────────────────────────────────────────────────
+document.getElementById('timeline').addEventListener('input', e=>{
+  if (!telData.length) return;
+  playIdx=parseInt(e.target.value);
+  showFriendlyTelem(telData[playIdx]);
+  moveFriendlyMarker(selDrone, telData[playIdx]);
+  document.getElementById('tdisp').textContent=fmtTs(telData[playIdx]);
 });
-
-function stopPlayback() {
-  if (playbackTimer) { clearInterval(playbackTimer); playbackTimer = null; }
-  isPlaying = false;
-  document.getElementById('playback-btn').textContent = '▶ PLAY';
-  document.getElementById('playback-btn').classList.remove('playing');
+function stopPlay() {
+  if (playTimer) { clearInterval(playTimer); playTimer=null; }
+  playing=false;
+  document.getElementById('play-btn').textContent='▶ PLAY';
+  document.getElementById('play-btn').classList.remove('playing');
 }
-
-document.getElementById('playback-btn').addEventListener('click', () => {
-  if (!telemetryData.length) return;
-  if (isPlaying) { stopPlayback(); return; }
-  isPlaying = true;
-  document.getElementById('playback-btn').textContent = '⏸ PAUSE';
-  document.getElementById('playback-btn').classList.add('playing');
-  const speed = parseFloat(document.getElementById('speed-select').value);
-  playbackTimer = setInterval(() => {
-    if (playbackIndex >= telemetryData.length - 1) { stopPlayback(); return; }
-    playbackIndex++;
-    document.getElementById('timeline').value = playbackIndex;
-    updateFriendlyDisplay(telemetryData[playbackIndex]);
-    moveFriendlyMarker(selectedDrone, telemetryData[playbackIndex]);
-    document.getElementById('time-display').textContent = fmtTime(telemetryData[playbackIndex]);
-  }, 1000 / speed);
+document.getElementById('play-btn').addEventListener('click',()=>{
+  if (!telData.length) return;
+  if (playing) { stopPlay(); return; }
+  playing=true;
+  document.getElementById('play-btn').textContent='⏸ PAUSE';
+  document.getElementById('play-btn').classList.add('playing');
+  const spd=parseFloat(document.getElementById('speed-sel').value);
+  playTimer=setInterval(()=>{
+    if (playIdx>=telData.length-1) { stopPlay(); return; }
+    playIdx++;
+    document.getElementById('timeline').value=playIdx;
+    showFriendlyTelem(telData[playIdx]);
+    moveFriendlyMarker(selDrone, telData[playIdx]);
+    document.getElementById('tdisp').textContent=fmtTs(telData[playIdx]);
+  }, 1000/spd);
 });
-
-function fmtTime(row) {
-  const ts = row.timestamp || row.time || '';
-  try { return new Date(ts).toISOString().replace('T', ' ').slice(0, 19) + 'Z'; } catch { return ts; }
+function fmtTs(r) {
+  try { return new Date(r.timestamp||r.time||'').toISOString().replace('T',' ').slice(0,19)+'Z'; } catch { return '--'; }
 }
 
 // ── Alert log ──────────────────────────────────────────────────────────────
-function alertLog(text, type = 'INFO') {
-  const el = document.getElementById('alert-log');
-  const d = document.createElement('div');
-  d.className = `alert-msg ${type}`;
-  const now = new Date().toISOString().slice(11, 19);
-  d.innerHTML = `<span class="alert-time">${now}Z</span>${text}`;
+function alertLog(text, type='INFO') {
+  const el=document.getElementById('alog');
+  const d=document.createElement('div'); d.className='am '+type;
+  const now=new Date().toISOString().slice(11,19);
+  d.innerHTML=`<span class="at">${now}Z</span>${text}`;
   el.prepend(d);
-  while (el.children.length > 100) el.removeChild(el.lastChild);
+  while(el.children.length>150) el.removeChild(el.lastChild);
 }
 
-// ── Voice recognition ──────────────────────────────────────────────────────
-let recognition = null;
-const voiceBtn = document.getElementById('voice-btn');
-
-if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = 'en-US';
-  recognition.onresult = e => {
-    const text = e.results[0][0].transcript;
-    document.getElementById('text-input').value = text;
-    voiceBtn.classList.remove('recording');
-    voiceBtn.textContent = '🎤';
-    sendCommand(text);
-  };
-  recognition.onerror = recognition.onend = () => {
-    voiceBtn.classList.remove('recording');
-    voiceBtn.textContent = '🎤';
-  };
-} else {
-  voiceBtn.disabled = true;
-}
-
-voiceBtn.addEventListener('click', () => {
-  if (!recognition) return;
-  if (voiceBtn.classList.contains('recording')) { recognition.stop(); return; }
-  voiceBtn.classList.add('recording');
-  voiceBtn.textContent = '●';
-  recognition.start();
+// ── Voice ──────────────────────────────────────────────────────────────────
+let recog=null;
+if ('SpeechRecognition' in window||'webkitSpeechRecognition' in window) {
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recog=new SR(); recog.lang='en-US';
+  recog.onresult=e=>{ const t=e.results[0][0].transcript; document.getElementById('ti').value=t; endRec(); sendCmd(t); };
+  recog.onerror=recog.onend=endRec;
+} else { document.getElementById('vb').disabled=true; }
+function endRec() { document.getElementById('vb').classList.remove('rec'); document.getElementById('vb').textContent='🎤'; }
+document.getElementById('vb').addEventListener('click',()=>{
+  if (!recog) return;
+  if (document.getElementById('vb').classList.contains('rec')) { recog.stop(); return; }
+  document.getElementById('vb').classList.add('rec');
+  document.getElementById('vb').textContent='●';
+  recog.start();
 });
-
-function speak(text) {
+function speak(t) {
   if (!window.speechSynthesis) return;
-  const u = new SpeechSynthesisUtterance(text.slice(0, 200));
-  u.rate = 1.1;
-  window.speechSynthesis.speak(u);
+  const u=new SpeechSynthesisUtterance(t.slice(0,300)); u.rate=1.1; window.speechSynthesis.speak(u);
 }
 
 // ── Send command ───────────────────────────────────────────────────────────
-async function sendCommand(text) {
+async function sendCmd(text) {
   if (!text.trim()) return;
-  document.getElementById('text-input').value = '';
-
-  // Prepend modality context if not ALL
-  const fullText = currentModality !== 'ALL'
-    ? `[${currentModality} SENSOR CONTEXT] ${text}`
-    : text;
-
-  alertLog(text, 'OP');
-
+  document.getElementById('ti').value='';
+  const full = modality!=='ALL' ? `[${modality} CONTEXT] ${text}` : text;
+  alertLog(text,'OP');
   try {
-    const res = await fetch(api('/api/command'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: fullText, drone_id: selectedDrone, conversation_history: conversationHistory }),
+    const res=await fetch(api('/api/command'),{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:full, drone_id:selDrone, conversation_history:convHistory})
     });
-    const data = await res.json();
-    alertLog(data.response, 'AI');
+    const data=await res.json();
+    alertLog(data.response,'AI');
     speak(data.response);
-    conversationHistory = data.updated_history;
+    convHistory=data.updated_history;
 
-    // Apply any sensor updates Claude made
-    if (data.sensor_updates && data.sensor_updates.length) {
-      data.sensor_updates.forEach(updated => {
-        sensors = sensors.map(s => s.sensorId === updated.sensorId ? updated : s);
-        drawSensor(updated);
-      });
-      renderSensorPanel();
+    // Apply sensor updates
+    if (data.sensor_updates?.length) {
+      data.sensor_updates.forEach(u=>{ sensors=sensors.map(s=>s.sensorId===u.sensorId?u:s); drawSensor(u); });
+      renderSensorList();
     }
-  } catch (e) {
-    alertLog(`Command error: ${e.message}`, 'WARNING');
-  }
+    // Apply asset updates
+    if (data.asset_updates?.length) {
+      data.asset_updates.forEach(u=>{ responseAssets=responseAssets.map(a=>a.assetId===u.assetId?u:a); drawAsset(u); });
+      renderAssetList();
+      alertLog('Asset status updated','DEPLOY');
+    }
+    // Show recommendation in threat panel if active threat selected
+    if (selThreat && (text.toLowerCase().includes('recommend')||text.toLowerCase().includes('counter')||text.toLowerCase().includes('engage')||text.toLowerCase().includes('neutralize'))) {
+      document.getElementById('rec-text').textContent = data.response;
+      document.getElementById('rec-box').classList.add('show');
+    }
+  } catch(e) { alertLog('Error: '+e.message,'WARNING'); }
 }
+document.getElementById('sb').addEventListener('click',()=>sendCmd(document.getElementById('ti').value));
+document.getElementById('ti').addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(e.target.value); });
 
-document.getElementById('send-btn').addEventListener('click', () => sendCommand(document.getElementById('text-input').value));
-document.getElementById('text-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendCommand(e.target.value); });
-
-// ── Boot ───────────────────────────────────────────────────────────────────
 loadAll();
 </script>
 </body>

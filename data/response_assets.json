@@ -1,0 +1,102 @@
+[
+  {
+    "assetId": "UAS-INT-01",
+    "name": "Interceptor Drone Alpha",
+    "type": "UAS_INTERCEPTOR",
+    "status": "READY",
+    "position": { "latitude": 38.9090, "longitude": -77.0310 },
+    "heading": 0,
+    "capabilities": {
+      "maxRangeM": 5000,
+      "minAltM": 5,
+      "maxAltM": 400,
+      "maxTargetSpeedMs": 25,
+      "responseTimeSec": 45,
+      "pkill": 0.80,
+      "method": "Net capture / physical intercept",
+      "bestAgainst": ["Quadrotor UAS", "Fixed-wing UAS (slow)"]
+    },
+    "status_detail": "Airborne patrol, 87% battery",
+    "ammo": null
+  },
+  {
+    "assetId": "UAS-INT-02",
+    "name": "Interceptor Drone Bravo",
+    "type": "UAS_INTERCEPTOR",
+    "status": "READY",
+    "position": { "latitude": 38.8970, "longitude": -77.0390 },
+    "heading": 45,
+    "capabilities": {
+      "maxRangeM": 5000,
+      "minAltM": 5,
+      "maxAltM": 400,
+      "maxTargetSpeedMs": 25,
+      "responseTimeSec": 60,
+      "pkill": 0.80,
+      "method": "Net capture / physical intercept",
+      "bestAgainst": ["Quadrotor UAS", "Fixed-wing UAS (slow)"]
+    },
+    "status_detail": "Ground standby",
+    "ammo": null
+  },
+  {
+    "assetId": "CRAM-01",
+    "name": "C-RAM Battery Alpha",
+    "type": "CRAM",
+    "status": "READY",
+    "position": { "latitude": 38.9010, "longitude": -77.0430 },
+    "heading": 90,
+    "capabilities": {
+      "maxRangeM": 2000,
+      "minAltM": 10,
+      "maxAltM": 500,
+      "maxTargetSpeedMs": 300,
+      "responseTimeSec": 8,
+      "pkill": 0.92,
+      "method": "20mm Phalanx CIWS burst fire",
+      "bestAgainst": ["Fixed-wing UAS", "Quadrotor UAS", "Cruise missiles", "Rockets"]
+    },
+    "status_detail": "Hot standby, fully loaded",
+    "ammo": { "current": 1550, "max": 1550, "unit": "20mm rounds" }
+  },
+  {
+    "assetId": "CRAM-02",
+    "name": "C-RAM Battery Bravo",
+    "type": "CRAM",
+    "status": "READY",
+    "position": { "latitude": 38.9100, "longitude": -77.0200 },
+    "heading": 270,
+    "capabilities": {
+      "maxRangeM": 2000,
+      "minAltM": 10,
+      "maxAltM": 500,
+      "maxTargetSpeedMs": 300,
+      "responseTimeSec": 8,
+      "pkill": 0.92,
+      "method": "20mm Phalanx CIWS burst fire",
+      "bestAgainst": ["Fixed-wing UAS", "Quadrotor UAS", "Cruise missiles", "Rockets"]
+    },
+    "status_detail": "Hot standby, fully loaded",
+    "ammo": { "current": 1550, "max": 1550, "unit": "20mm rounds" }
+  },
+  {
+    "assetId": "PATRIOT-01",
+    "name": "Patriot Battery Alpha",
+    "type": "PATRIOT",
+    "status": "READY",
+    "position": { "latitude": 38.9200, "longitude": -77.0550 },
+    "heading": 180,
+    "capabilities": {
+      "maxRangeM": 160000,
+      "minAltM": 60,
+      "maxAltM": 24000,
+      "maxTargetSpeedMs": 2000,
+      "responseTimeSec": 15,
+      "pkill": 0.95,
+      "method": "PAC-3 MSE hit-to-kill missile",
+      "bestAgainst": ["Ballistic missiles", "Cruise missiles", "High-altitude UAS", "Fixed-wing aircraft"]
+    },
+    "status_detail": "Ready, 8 PAC-3 MSE available",
+    "ammo": { "current": 8, "max": 8, "unit": "PAC-3 MSE missiles" }
+  }
+]
