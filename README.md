@@ -17,7 +17,13 @@ Voice Input (Web Speech API)
    Datasets: drone_telemetry_points, drone_missions
 ```
 
-## Setup
+## Deployment
+
+**Frontend:** Deployed to GitHub Pages at `https://ben-claflin.github.io/ns-hackathon/`
+
+**Backend:** Runs locally at the hackathon venue (required for Foundry IP allowlist)
+
+## Local Setup & Running at the Venue
 
 ### 1. Install dependencies
 ```bash
@@ -31,18 +37,22 @@ cp .env.example .env
 # FOUNDRY_TOKEN and FOUNDRY_HOST are already set
 ```
 
-### 3. Discover Foundry resource IDs (run from hackathon venue network)
+### 3. Discover Foundry resource IDs (from hackathon venue WiFi)
 ```bash
 python discover.py
 # Copy the output lines into .env
 ```
 
-### 4. Start the server
+### 4. Start the backend server
 ```bash
 uvicorn backend:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open http://localhost:8000
+### 5. Access the frontend
+- **If running locally:** Open `http://localhost:8000`
+- **If running on GitHub Pages:** Open `https://ben-claflin.github.io/ns-hackathon/`
+  - It will prompt for backend URL — enter `http://<your-machine-ip>:8000`
+  - Or click the BACKEND indicator in top-right to change it anytime
 
 ## Usage
 

@@ -27,6 +27,8 @@
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   .header-spacer { flex: 1; }
   #foundry-status { font-size: 11px; color: var(--dim); }
+  .backend-config { font-size: 9px; color: var(--dim); margin-left: auto; padding-right: 8px; cursor: help; }
+  .backend-config:hover { color: var(--accent); }
 
   /* ── Layout ── */
   .main { display: grid; grid-template-columns: 280px 1fr 300px; flex: 1; overflow: hidden; }
@@ -98,6 +100,7 @@
   <div class="status-dot"></div>
   <h1>Drone C2 Platform</h1>
   <div class="header-spacer"></div>
+  <div class="backend-config" id="backend-info" title="Click to change backend URL">BACKEND: --</div>
   <span id="foundry-status">FOUNDRY: CONNECTING...</span>
 </header>
 
@@ -159,6 +162,29 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ── Backend configuration ──────────────────────────────────────────────────
+// Detect if running locally or on GitHub Pages
+const LOCAL_BACKEND = 'http://localhost:8000';
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+let BACKEND_URL = isLocalhost ? LOCAL_BACKEND : prompt(
+  'Enter backend URL (e.g., http://192.168.1.100:8000):',
+  LOCAL_BACKEND
+) || LOCAL_BACKEND;
+
+document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND_URL}`;
+document.getElementById('backend-info').addEventListener('click', () => {
+  const url = prompt('Change backend URL:', BACKEND_URL);
+  if (url) {
+    BACKEND_URL = url;
+    document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND_URL}`;
+  }
+});
+
+// Helper to build API URLs
+function apiUrl(path) {
+  return BACKEND_URL + path;
+}
+
 // ── Map setup ──────────────────────────────────────────────────────────────
 const map = L.map('map', {
   center: [38.9, -77.0],
@@ -256,7 +282,7 @@ function formatTime(row) {
 document.getElementById('load-drones-btn').addEventListener('click', async () => {
   document.getElementById('foundry-status').textContent = 'FOUNDRY: QUERYING...';
   try {
-    const res = await fetch('/api/drones');
+    const res = await fetch(apiUrl('/api/drones'));
     const data = await res.json();
     const list = document.getElementById('drone-list');
     list.innerHTML = '';
@@ -288,7 +314,7 @@ async function selectDrone(droneId, el) {
   log(`Loading telemetry for ${droneId}...`, 'system');
 
   try {
-    const res = await fetch(`/api/telemetry/${droneId}`);
+    const res = await fetch(apiUrl(`/api/telemetry/${droneId}`));
     const data = await res.json();
     telemetryData = data.telemetry || [];
 
@@ -419,7 +445,7 @@ async function sendCommand(text) {
   document.getElementById('text-input').value = '';
 
   try {
-    const res = await fetch('/api/command', {
+    const res = await fetch(apiUrl('/api/command'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -450,7 +476,7 @@ document.getElementById('text-input').addEventListener('keydown', e => {
 // ── Initial status check ───────────────────────────────────────────────────
 (async () => {
   try {
-    const r = await fetch('/api/drones');
+    const r = await fetch(apiUrl('/api/drones'));
     if (r.ok) {
       document.getElementById('foundry-status').textContent = 'FOUNDRY: CONNECTED';
     }
