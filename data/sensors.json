@@ -4,8 +4,8 @@
     "name": "Acoustic Array Alpha",
     "type": "ACOUSTIC",
     "position": {
-      "latitude": 38.89624585477271,
-      "longitude": -77.03707091153503
+      "latitude": 38.88367568153389,
+      "longitude": -77.0345864392749
     },
     "orientation": 0,
     "fov": 360,
@@ -88,8 +88,8 @@
     "name": "RF Intercept Bravo",
     "type": "RF",
     "position": {
-      "latitude": 38.898,
-      "longitude": -77.03
+      "latitude": 38.90466375826959,
+      "longitude": -77.04471141587403
     },
     "orientation": 310,
     "fov": 90,
