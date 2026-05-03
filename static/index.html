@@ -366,6 +366,124 @@ async function fetchJSON(path, options) {
 setInterval(() => document.getElementById('clock').textContent =
   new Date().toUTCString().slice(17,25) + ' UTC', 1000);
 
+// ── Offline map fallback ───────────────────────────────────────────────────
+if (!window.L) {
+  const projectFallback = (lat, lon) => {
+    const bounds = window.__fallbackBounds || {minLat:38.875,maxLat:38.925,minLon:-77.07,maxLon:-77.00};
+    const mapEl = document.getElementById('map');
+    const w = mapEl.clientWidth || 800, h = mapEl.clientHeight || 600;
+    const x = ((lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * w;
+    const y = (1 - ((lat - bounds.minLat) / (bounds.maxLat - bounds.minLat))) * h;
+    return {x, y};
+  };
+  const unprojectFallback = (x, y) => {
+    const bounds = window.__fallbackBounds || {minLat:38.875,maxLat:38.925,minLon:-77.07,maxLon:-77.00};
+    const mapEl = document.getElementById('map');
+    const w = mapEl.clientWidth || 800, h = mapEl.clientHeight || 600;
+    return {
+      lat: bounds.minLat + (1 - y / h) * (bounds.maxLat - bounds.minLat),
+      lng: bounds.minLon + (x / w) * (bounds.maxLon - bounds.minLon),
+    };
+  };
+  const makeLayer = el => ({
+    el,
+    addTo(mapObj) { mapObj._el.appendChild(el); return this; },
+    remove() { el.remove(); return this; },
+    bindTooltip(text) { el.title = text.replace(/<[^>]*>/g, ' '); return this; },
+    on(evt, cb) {
+      if (evt === 'dragend') el.addEventListener('fallback-dragend', ev => cb({target:{getLatLng:()=>ev.detail.latlng}}));
+      else el.addEventListener(evt, cb);
+      return this;
+    },
+    setLatLng(pos) {
+      const p = projectFallback(pos[0], pos[1]);
+      el.style.left = `${p.x}px`; el.style.top = `${p.y}px`;
+      return this;
+    },
+  });
+  const pathLayer = (points, opts={}, closed=false) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = 'position:absolute;inset:0;overflow:visible;pointer-events:none';
+    const node = document.createElementNS('http://www.w3.org/2000/svg', closed ? 'polygon' : 'polyline');
+    const draw = () => {
+      node.setAttribute('points', points.map(([lat,lon]) => {
+        const p = projectFallback(lat, lon); return `${p.x},${p.y}`;
+      }).join(' '));
+    };
+    node.setAttribute('fill', closed ? (opts.fillColor || opts.color || 'transparent') : 'none');
+    node.setAttribute('fill-opacity', closed ? (opts.fillOpacity ?? .15) : 0);
+    node.setAttribute('stroke', opts.color || '#fff');
+    node.setAttribute('stroke-width', opts.weight || 1);
+    node.setAttribute('stroke-opacity', opts.opacity ?? .7);
+    if (opts.dashArray) node.setAttribute('stroke-dasharray', opts.dashArray);
+    svg.appendChild(node); draw();
+    return makeLayer(svg);
+  };
+  window.L = {
+    map(id) {
+      const el = document.getElementById(id);
+      el.style.position = 'relative';
+      el.style.overflow = 'hidden';
+      el.style.background = '#07111a';
+      el.insertAdjacentHTML('beforeend', '<div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,212,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.08) 1px,transparent 1px);background-size:48px 48px"></div>');
+      return {
+        _el: el,
+        setView() { return this; },
+        panTo() { return this; },
+        fitBounds(points) {
+          const lats = points.map(p=>p[0]), lons = points.map(p=>p[1]);
+          const padLat = Math.max((Math.max(...lats)-Math.min(...lats))*.15, .005);
+          const padLon = Math.max((Math.max(...lons)-Math.min(...lons))*.15, .005);
+          window.__fallbackBounds = {
+            minLat: Math.min(...lats)-padLat, maxLat: Math.max(...lats)+padLat,
+            minLon: Math.min(...lons)-padLon, maxLon: Math.max(...lons)+padLon,
+          };
+          return this;
+        },
+      };
+    },
+    tileLayer() { return {addTo(mapObj){ return this; }}; },
+    divIcon(cfg) { return cfg; },
+    marker(pos, opts={}) {
+      const el = document.createElement('div');
+      el.innerHTML = opts.icon?.html || '●';
+      el.style.cssText = 'position:absolute;transform:translate(-50%,-50%);z-index:20;cursor:pointer';
+      const layer = makeLayer(el).setLatLng(pos);
+      if (opts.draggable) {
+        el.addEventListener('pointerdown', ev => {
+          ev.preventDefault(); el.setPointerCapture(ev.pointerId);
+          const move = mv => {
+            const rect = el.parentElement.getBoundingClientRect();
+            el.style.left = `${mv.clientX - rect.left}px`; el.style.top = `${mv.clientY - rect.top}px`;
+          };
+          const up = upEv => {
+            el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+            const latlng = unprojectFallback(parseFloat(el.style.left), parseFloat(el.style.top));
+            el.dispatchEvent(new CustomEvent('fallback-dragend', {detail:{latlng}}));
+          };
+          el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+        });
+      }
+      return layer;
+    },
+    circle(pos, opts={}) {
+      const el = document.createElement('div');
+      const layer = makeLayer(el);
+      layer.setLatLng = p => {
+        const xy = projectFallback(p[0], p[1]);
+        const px = Math.max((opts.radius || 1000) / 45, 18);
+        el.style.cssText = `position:absolute;left:${xy.x}px;top:${xy.y}px;width:${px}px;height:${px}px;transform:translate(-50%,-50%);border:${opts.weight||1}px ${opts.dashArray?'dashed':'solid'} ${opts.color||'#fff'};border-radius:50%;background:${opts.fillColor||'transparent'};opacity:${opts.opacity??.5};pointer-events:none`;
+        el.style.backgroundColor = opts.fillColor || 'transparent';
+        el.style.opacity = opts.opacity ?? .5;
+        return layer;
+      };
+      return layer.setLatLng(pos);
+    },
+    polygon(points, opts) { return pathLayer(points, opts, true); },
+    polyline(points, opts) { return pathLayer(points, opts, false); },
+  };
+}
+
 // ── Map ────────────────────────────────────────────────────────────────────
 const map = L.map('map', { center: [30.270,-97.745], zoom: 13 });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -571,12 +689,12 @@ async function loadAll() {
       document.getElementById('alert-dot').className='dot r';
     }
 
+    fitMapToData();
     renderFriendlyList(); renderThreatList(); renderAssetList(); renderSensorList();
     sensors.forEach(drawSensor);
     responseAssets.forEach(drawAsset);
     drawAllThreats();
     await drawAllDrones();
-    fitMapToData();
     const source = st?.data_source ? st.data_source.replace('DataClient','') : 'backend';
     alertLog(`Loaded from ${source}: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
   } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
