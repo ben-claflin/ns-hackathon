@@ -112,6 +112,12 @@ The backend will automatically use Foundry if the RIDs are configured and the IP
 
 To let Claude Code directly query Foundry during development:
 
+Install the optional MCP package first:
+
+```bash
+python3 -m pip install mcp
+```
+
 ```bash
 # Add to ~/.claude/mcp.json
 {
