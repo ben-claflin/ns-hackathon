@@ -202,6 +202,8 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
     <div class="sed" id="sed" style="display:none">
       <div class="ptitle" style="margin:-8px -8px 7px;font-size:9px">SENSOR: <span id="sed-id">--</span></div>
       <div class="er"><span class="el">Bearing °</span><input class="ei" id="sed-bearing" type="number" min="0" max="359"></div>
+      <div class="er"><span class="el">FOV °</span><input class="ei" id="sed-fov" type="number" min="1" max="360"></div>
+      <div class="er"><span class="el">Range m</span><input class="ei" id="sed-range" type="number" min="50" max="200000"></div>
       <div class="er"><span class="el">Type</span>
         <select class="ei" id="sed-type" onchange="sedTypeChange()">
           <option value="ACOUSTIC">ACOUSTIC</option>
@@ -228,7 +230,7 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
     <div id="map"></div>
     <div class="map-legend">
       <div class="lr"><div class="ls" style="background:var(--hostile);clip-path:polygon(50% 0%,100% 100%,0% 100%)"></div>Hostile track</div>
-      <div class="lr"><div class="ls" style="background:var(--accent)"></div>Friendly UAS</div>
+      <div class="lr"><div class="ls" style="background:var(--accent);clip-path:polygon(50% 0%,63% 35%,100% 35%,70% 55%,82% 100%,50% 72%,18% 100%,30% 55%,0% 35%,37% 35%)"></div>Friendly drone</div>
       <div class="lr"><div class="ls" style="background:var(--cram);border-radius:2px"></div>C-RAM</div>
       <div class="lr"><div class="ls" style="background:var(--patriot)"></div>Patriot PAC-3</div>
       <div class="lr"><div class="ls" style="background:var(--ew)"></div>EW Jammer</div>
@@ -355,6 +357,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
 
 // ── State ──────────────────────────────────────────────────────────────────
 let sensors=[], threats=[], drones=[], responseAssets=[];
+let droneLatest={};
 let droneMarkers={}, droneTrails={};
 let threatMarkers={}, threatTrails={};
 let sensorMarkers={}, sensorOverlays={};
@@ -365,8 +368,8 @@ let modality='ALL', convHistory=[];
 
 // ── Icon helpers ───────────────────────────────────────────────────────────
 const friendlyIcon = () => L.divIcon({
-  html:'<div style="width:13px;height:13px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
-  iconSize:[13,13], iconAnchor:[6,6], className:''
+  html:'<div style="position:relative;width:22px;height:22px;color:#00d4ff;filter:drop-shadow(0 0 5px #00d4ff)"><div style="position:absolute;left:8px;top:2px;width:6px;height:18px;background:#00d4ff;border-radius:6px"></div><div style="position:absolute;left:2px;top:8px;width:18px;height:6px;background:#00d4ff;border-radius:6px"></div><div style="position:absolute;left:0;top:0;width:6px;height:6px;border:2px solid #fff;border-radius:50%"></div><div style="position:absolute;right:0;top:0;width:6px;height:6px;border:2px solid #fff;border-radius:50%"></div><div style="position:absolute;left:0;bottom:0;width:6px;height:6px;border:2px solid #fff;border-radius:50%"></div><div style="position:absolute;right:0;bottom:0;width:6px;height:6px;border:2px solid #fff;border-radius:50%"></div></div>',
+  iconSize:[22,22], iconAnchor:[11,11], className:''
 });
 const threatIcon = lvl => {
   const c = lvl==='HIGH'?'#ff4422':lvl==='MEDIUM'?'#ffaa00':'#ff8800';
@@ -387,7 +390,7 @@ const sensorIcon = (type, active) => {
 const ASSET_CFG = {
   UAS_INTERCEPTOR: { color:'#44aaff', shape:'◆', size:16 },
   CRAM:            { color:'#00ff88', shape:'▪', size:22 },
-  PATRIOT:         { color:'#ffcc00', shape:'★', size:18 },
+  PATRIOT:         { color:'#ffcc00', shape:'⬟', size:18 },
   EW_JAMMER:       { color:'#ff88ff', shape:'⚡', size:17 },
   MANPADS:         { color:'#ff9944', shape:'↑', size:20 },
   INTERCEPTOR:     { color:'#88ccff', shape:'▶', size:16 },
@@ -439,6 +442,37 @@ function drawSensor(s) {
   sensorMarkers[s.sensorId] = m;
 }
 
+function drawDrone(id, row, focus=false) {
+  const lat=row.latitude||row.lat, lon=row.longitude||row.lon;
+  if (!lat||!lon) return;
+  droneLatest[id]=row;
+  if (!droneMarkers[id]) {
+    droneMarkers[id]=L.marker([lat,lon],{icon:friendlyIcon(), title:id}).addTo(map).bindTooltip(id);
+    droneMarkers[id].on('click', () => selectDrone(id));
+  } else {
+    droneMarkers[id].setLatLng([lat,lon]);
+  }
+  if (focus) map.panTo([lat,lon],{animate:true,duration:.3});
+}
+
+async function drawAllDrones() {
+  await Promise.all(drones.map(async id => {
+    try {
+      const d = await fetchJSON(`/api/telemetry/${id}`);
+      const rows = d.telemetry||[];
+      if (!rows.length) return;
+      const pts = rows.map(r=>[r.latitude||r.lat,r.longitude||r.lon]).filter(p=>p[0]&&p[1]);
+      if (droneTrails[id]) droneTrails[id].remove();
+      if (pts.length > 1) {
+        droneTrails[id] = L.polyline(pts, {color:'#00d4ff',weight:1,opacity:.45}).addTo(map);
+      }
+      drawDrone(id, rows[rows.length-1]);
+    } catch(e) {
+      alertLog(`Drone ${id} telemetry failed: ${e.message}`,'WARNING');
+    }
+  }));
+}
+
 // ── Draw asset on map ──────────────────────────────────────────────────────
 function drawAsset(a) {
   const {latitude:lat, longitude:lon} = a.position;
@@ -456,7 +490,7 @@ function drawAsset(a) {
   }).addTo(map);
 
   if (assetMarkers[a.assetId]) assetMarkers[a.assetId].remove();
-  const m = L.marker([lat,lon], {icon:assetIcon(a.type, a.status), title:a.name}).addTo(map);
+  const m = L.marker([lat,lon], {icon:assetIcon(a.type, a.status), draggable:true, title:a.name}).addTo(map);
   const inv = a.ammo ? ` · ${a.ammo.current} ${a.ammo.unit}` : '';
   m.bindTooltip(
     `<b>${a.name}</b><br>Type: ${a.type}<br>Status: ${a.status}<br>`+
@@ -464,6 +498,12 @@ function drawAsset(a) {
     `Response: ${cap.responseTimeSec||'?'}s${inv}<br>${a.status_detail||''}`,
     {direction:'top'}
   );
+  m.on('dragend', e => {
+    const {lat:nl, lng:nl2} = e.target.getLatLng();
+    fetchJSON(`/api/response-assets/${a.assetId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({position:{latitude:nl,longitude:nl2}})})
+      .then(u=>{ responseAssets=responseAssets.map(x=>x.assetId===u.assetId?u:x); drawAsset(u); renderAssetList(); alertLog(`${u.name} repositioned`,'INFO'); })
+      .catch(e=>alertLog(e.message,'WARNING'));
+  });
   m.on('click', () => selectAsset(a.assetId));
   assetMarkers[a.assetId] = m;
 }
@@ -519,6 +559,7 @@ async function loadAll() {
     sensors.forEach(drawSensor);
     responseAssets.forEach(drawAsset);
     drawAllThreats();
+    await drawAllDrones();
     const source = st?.data_source ? st.data_source.replace('DataClient','') : 'backend';
     alertLog(`Loaded from ${source}: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
   } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
@@ -529,7 +570,7 @@ function renderFriendlyList() {
   document.getElementById('friendly-list').innerHTML = drones.length===0
     ? '<div style="padding:6px 9px;color:var(--dim);font-size:9px">No assets</div>'
     : drones.map(id=>`<div class="item ${selDrone===id?'sel':''}" onclick="selectDrone('${id}')">
-        <span class="item-icon" style="color:var(--accent)">✈</span>
+        <span class="item-icon" style="color:var(--accent)">⌘</span>
         <div><div class="item-name c-friendly">${id}</div><div class="item-meta">FRIENDLY UAS</div></div>
       </div>`).join('');
 }
@@ -601,11 +642,7 @@ async function selectDrone(id) {
 }
 
 function moveFriendlyMarker(id, row) {
-  const lat=row.latitude||row.lat, lon=row.longitude||row.lon;
-  if (!lat||!lon) return;
-  if (!droneMarkers[id]) droneMarkers[id]=L.marker([lat,lon],{icon:friendlyIcon()}).addTo(map).bindTooltip(id);
-  else droneMarkers[id].setLatLng([lat,lon]);
-  map.panTo([lat,lon],{animate:true,duration:.3});
+  drawDrone(id, row, true);
 }
 
 function showFriendlyTelem(r) {
@@ -662,6 +699,8 @@ function selectSensor(id) {
   document.getElementById('tdet').style.display='none';
   document.getElementById('sed-id').textContent=id;
   document.getElementById('sed-bearing').value=s.orientation;
+  document.getElementById('sed-fov').value=s.fov;
+  document.getElementById('sed-range').value=s.range;
   document.getElementById('sed-type').value=s.type;
   sedTypeChange();
   if (s.type==='IMAGERY') document.getElementById('sed-modality').value=s.modality||'EO';
@@ -675,6 +714,8 @@ function applyUpdate() {
   if (!selSensor) return;
   const patch = {
     orientation: parseInt(document.getElementById('sed-bearing').value,10),
+    fov: parseInt(document.getElementById('sed-fov').value,10),
+    range: parseInt(document.getElementById('sed-range').value,10),
     type: document.getElementById('sed-type').value,
   };
   if (patch.type==='IMAGERY') patch.modality=document.getElementById('sed-modality').value;

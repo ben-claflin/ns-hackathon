@@ -96,6 +96,8 @@ APP_TOOLS = [
             "properties": {
                 "sensor_id": {"type": "string"},
                 "orientation": {"type": "number"},
+                "fov": {"type": "number", "description": "Field of view in degrees; 360 is omnidirectional"},
+                "range": {"type": "number", "description": "Sensor range in meters"},
                 "active": {"type": "boolean"},
                 "position": {
                     "type": "object",
@@ -108,6 +110,27 @@ APP_TOOLS = [
                 "type": {"type": "string", "enum": ["ACOUSTIC", "RF", "IMAGERY"]},
             },
             "required": ["sensor_id"],
+        },
+    },
+    {
+        "name": "update_response_asset",
+        "description": "Move or update a response asset: change position, heading, status, or status detail.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "asset_id": {"type": "string"},
+                "status": {"type": "string"},
+                "status_detail": {"type": "string"},
+                "heading": {"type": "number"},
+                "position": {
+                    "type": "object",
+                    "properties": {
+                        "latitude": {"type": "number"},
+                        "longitude": {"type": "number"},
+                    },
+                },
+            },
+            "required": ["asset_id"],
         },
     },
     {
@@ -240,6 +263,12 @@ def execute_tool(name: str, inputs: dict) -> str:
             })
             asset = data_client.get_response_asset(inputs["asset_id"])
             return json.dumps({"status": "deployed", "result": result, "asset": asset})
+        elif name == "update_response_asset":
+            aid = inputs.pop("asset_id")
+            updated = data_client.update_response_asset(aid, inputs)
+            if not updated:
+                return json.dumps({"error": f"Asset {aid} not found"})
+            return json.dumps({"status": "updated", "asset": updated})
         elif name == "execute_drone_command":
             action_map = {"hold": "drone_hold", "abort": "drone_abort",
                           "reroute": "drone_reroute", "rtb": "drone_return_to_base"}
@@ -386,7 +415,7 @@ async def api_command(req: CommandRequest):
                 data = json.loads(result_str)
                 if call.function.name == "update_sensor" and "sensor" in data:
                     sensor_updates.append(data["sensor"])
-                if call.function.name == "deploy_asset" and "asset" in data:
+                if call.function.name in ("deploy_asset", "update_response_asset") and "asset" in data:
                     asset_updates.append(data["asset"])
                 messages.append({
                     "role": "tool",

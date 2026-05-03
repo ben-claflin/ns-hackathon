@@ -138,6 +138,35 @@ class GitHubDataClient:
         self._write("response_assets.json", self.response_assets)
         return copy.deepcopy(asset)
 
+    # ── Map center ─────────────────────────────────────────────────────────
+
+    def get_map_center(self):
+        points = []
+        for sensor in self.sensors:
+            points.append(sensor.get("position", {}))
+        for asset in self.response_assets:
+            points.append(asset.get("position", {}))
+        for threat in self.threats:
+            for row in threat.get("track", []):
+                points.append({"latitude": row.get("latitude"), "longitude": row.get("longitude")})
+        for row in self.telemetry:
+            points.append({"latitude": row.get("latitude"), "longitude": row.get("longitude")})
+
+        coords = [
+            (p["latitude"], p["longitude"])
+            for p in points
+            if p.get("latitude") is not None and p.get("longitude") is not None
+        ]
+        if not coords:
+            return {"latitude": 38.905, "longitude": -77.037, "zoom": 13}
+        lats = [p[0] for p in coords]
+        lons = [p[1] for p in coords]
+        return {
+            "latitude": sum(lats) / len(lats),
+            "longitude": sum(lons) / len(lons),
+            "zoom": 13,
+        }
+
     # ── Counter-action recommendation ──────────────────────────────────────
 
     def recommend_counteraction(self, threat_id: str) -> dict:
