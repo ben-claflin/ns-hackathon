@@ -1,7 +1,6 @@
 """
-Data client reading drone telemetry, missions, sensors, threats, and
-response assets from JSON files in /data/. Supports in-memory write-back
-for sensor repositioning and modality changes during a session.
+Data client reading and writing drone telemetry, missions, sensors, threats,
+and response assets from JSON files in /data/.
 """
 import json
 import math
@@ -39,6 +38,12 @@ class GitHubDataClient:
             with open(p) as f:
                 return json.load(f)
         return default
+
+    def _write(self, filename, data):
+        p = self.data_dir / filename
+        with open(p, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
 
     def reload(self):
         self._load_data()
@@ -79,6 +84,7 @@ class GitHubDataClient:
         for k, v in patch.items():
             if k in allowed:
                 sensor[k] = v
+        self._write("sensors.json", self.sensors)
         return copy.deepcopy(sensor)
 
     # ── Threats ────────────────────────────────────────────────────────────
@@ -129,6 +135,7 @@ class GitHubDataClient:
         for k, v in patch.items():
             if k in allowed:
                 asset[k] = v
+        self._write("response_assets.json", self.response_assets)
         return copy.deepcopy(asset)
 
     # ── Counter-action recommendation ──────────────────────────────────────

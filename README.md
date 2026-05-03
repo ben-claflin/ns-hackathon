@@ -10,9 +10,8 @@ The platform works out-of-the-box with sample data stored in `/data/` folder:
 # 1. Install
 pip install -r requirements.txt
 
-# 2. Add Anthropic API key
-cp .env.example .env
-# Edit .env: add your ANTHROPIC_API_KEY
+# 2. Optional: create local environment file for voice AI later
+# cp .env.example .env
 
 # 3. Run
 uvicorn backend:app --reload --port 8000
@@ -21,20 +20,39 @@ uvicorn backend:app --reload --port 8000
 # http://localhost:8000
 ```
 
-The backend automatically uses PostgreSQL when `DATABASE_URL` or `POSTGRES_HOST` is configured. If PostgreSQL is not configured or reachable, it falls back to JSON files in `/data/`.
+The backend uses local JSON files in `/data/` as the app data store. Map edits are written back to those files through the local FastAPI backend.
 
 The frontend is served by the backend at `http://localhost:8000` and uses that same origin automatically. Click the backend label in the header only when you intentionally need to point the page at a different backend.
 
-### PostgreSQL Data
+## Local Data
 
-Configure either a single connection URL or the individual connection fields:
+The map and panels are backed by these public local files:
+
+- `data/sensors.json`: sensor locations, orientation, range, type, active state, and detections.
+- `data/response_assets.json`: interceptor/C-RAM/Patriot locations, status, range, capability, and ammo.
+- `data/threats.json`: hostile tracks and threat metadata.
+- `data/drone_telemetry.json`: friendly UAS telemetry used by playback.
+- `data/drone_missions.json`: friendly UAS mission data.
+
+Current map interactions persist locally:
+
+- Drag a sensor marker to update `data/sensors.json`.
+- Edit sensor bearing/type/modality or toggle active state to update `data/sensors.json`.
+- Deploying an asset through backend actions updates `data/response_assets.json`.
+
+Check the active data source:
 
 ```bash
-DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
-POSTGRES_SCHEMA=hackathon
+curl http://localhost:8000/api/status
 ```
 
-Expected tables are `hackathon.sensors`, `hackathon.threats`, and `hackathon.responses`. The app reads live rows for the map, list panels, recommendations, and voice/text commands. Sensor repositioning, bearing, range, and response asset status are written back when those columns exist in the database schema.
+You should see `GitHubDataClient` with `storage` set to `local_json`.
+
+## Local Secrets
+
+This is a public GitHub repository. Do not commit real API keys, private hostnames, or bearer tokens.
+
+No secrets are required for the map and local JSON data. Later, voice AI commands can use `ANTHROPIC_API_KEY` in a local `.env` file, which is ignored by git.
 
 ### Updating Sample Data
 

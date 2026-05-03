@@ -21,18 +21,8 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 def _make_data_client():
-    """Try PostgreSQL first; fall back to JSON files."""
-    if os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_HOST"):
-        try:
-            from db_client import PostgresDataClient
-            client = PostgresDataClient()
-            # Smoke-test the connection
-            client.get_sensors()
-            print("[INFO] Using PostgreSQL data source")
-            return client
-        except Exception as e:
-            print(f"[WARN] PostgreSQL unavailable ({e}), falling back to JSON files")
-    print("[INFO] Using JSON file data source")
+    """Use local JSON files in the repository as the app data store."""
+    print("[INFO] Using local JSON file data source")
     return GitHubDataClient()
 
 # ── Claude tools ───────────────────────────────────────────────────────────
@@ -319,7 +309,7 @@ async def api_map_center():
 async def api_status():
     return {
         "data_source": data_client.__class__.__name__ if data_client else "uninitialized",
-        "postgres_configured": bool(os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_HOST")),
+        "storage": "local_json",
         "voice_ai_configured": bool(ANTHROPIC_API_KEY),
     }
 

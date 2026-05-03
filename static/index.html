@@ -314,8 +314,9 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
 <script>
 // ── Backend config ─────────────────────────────────────────────────────────
 const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const isStaticHost = location.protocol === 'file:' || location.hostname.endsWith('github.io');
 const sameOriginBackend = `${location.protocol}//${location.host}`;
-let BACKEND = localStorage.getItem('cuasBackendUrl') || sameOriginBackend;
+let BACKEND = localStorage.getItem('cuasBackendUrl') || (isStaticHost ? 'http://localhost:8000' : sameOriginBackend);
 document.getElementById('backend-info').textContent = 'BACKEND: ' + BACKEND.replace(/https?:\/\//,'');
 document.getElementById('backend-info').onclick = () => {
   const u = prompt('Backend URL:', BACKEND);
@@ -327,6 +328,21 @@ document.getElementById('backend-info').onclick = () => {
   }
 };
 const api = p => BACKEND + p;
+async function fetchJSON(path, options) {
+  const url = api(path);
+  const res = await fetch(url, options);
+  const contentType = res.headers.get('content-type') || '';
+  const body = await res.text();
+  if (!res.ok) {
+    let detail = body;
+    try { detail = JSON.parse(body).detail || detail; } catch {}
+    throw new Error(`${path} failed (${res.status}): ${detail}`);
+  }
+  if (!contentType.includes('application/json')) {
+    throw new Error(`${url} returned ${contentType || 'non-JSON'}; backend URL is probably pointing at the frontend instead of FastAPI`);
+  }
+  return JSON.parse(body);
+}
 
 // ── Clock ──────────────────────────────────────────────────────────────────
 setInterval(() => document.getElementById('clock').textContent =
@@ -414,8 +430,9 @@ function drawSensor(s) {
   const m = L.marker([lat,lon], {icon:sensorIcon(s.type,s.active), draggable:true, title:s.name}).addTo(map);
   m.on('dragend', e => {
     const {lat:nl, lng:nl2} = e.target.getLatLng();
-    fetch(api(`/api/sensors/${s.sensorId}`), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({position:{latitude:nl,longitude:nl2}})})
-      .then(r=>r.json()).then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); alertLog(u.name+' repositioned','INFO'); });
+    fetchJSON(`/api/sensors/${s.sensorId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({position:{latitude:nl,longitude:nl2}})})
+      .then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); alertLog(u.name+' repositioned','INFO'); })
+      .catch(e=>alertLog(e.message,'WARNING'));
   });
   m.on('click', () => selectSensor(s.sensorId));
   m.bindTooltip(`<b>${s.name}</b><br>${s.type} · ${s.orientation}° · ${s.range}m<br>${s.active?'ACTIVE':'INACTIVE'}`, {direction:'top'});
@@ -472,12 +489,12 @@ function drawAllThreats() {
 async function loadAll() {
   try {
     const [dr,sr,tr,ar,mc,st] = await Promise.all([
-      fetch(api('/api/drones')).then(r=>r.json()),
-      fetch(api('/api/sensors')).then(r=>r.json()),
-      fetch(api('/api/threats')).then(r=>r.json()),
-      fetch(api('/api/response-assets')).then(r=>r.json()),
-      fetch(api('/api/map-center')).then(r=>r.json()),
-      fetch(api('/api/status')).then(r=>r.json()).catch(()=>null),
+      fetchJSON('/api/drones'),
+      fetchJSON('/api/sensors'),
+      fetchJSON('/api/threats'),
+      fetchJSON('/api/response-assets'),
+      fetchJSON('/api/map-center'),
+      fetchJSON('/api/status').catch(()=>null),
     ]);
     drones         = dr.drones||[];
     sensors        = sr.sensors||[];
@@ -571,8 +588,7 @@ async function selectDrone(id) {
   document.getElementById('tdet').style.display='none';
   document.getElementById('sed').style.display='none';
 
-  const r = await fetch(api(`/api/telemetry/${id}`));
-  const d = await r.json();
+  const d = await fetchJSON(`/api/telemetry/${id}`);
   telData = d.telemetry||[];
   if (!telData.length) return;
 
@@ -662,14 +678,16 @@ function applyUpdate() {
     type: document.getElementById('sed-type').value,
   };
   if (patch.type==='IMAGERY') patch.modality=document.getElementById('sed-modality').value;
-  fetch(api(`/api/sensors/${selSensor}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
-    .then(r=>r.json()).then(u=>{ sensors=sensors.map(s=>s.sensorId===u.sensorId?u:s); drawSensor(u); renderSensorList(); alertLog(`${u.name}: bearing ${u.orientation}° type ${u.type}`,'INFO'); });
+  fetchJSON(`/api/sensors/${selSensor}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
+    .then(u=>{ sensors=sensors.map(s=>s.sensorId===u.sensorId?u:s); drawSensor(u); renderSensorList(); alertLog(`${u.name}: bearing ${u.orientation}° type ${u.type}`,'INFO'); })
+    .catch(e=>alertLog(e.message,'WARNING'));
 }
 function toggleActive() {
   if (!selSensor) return;
   const s=sensors.find(x=>x.sensorId===selSensor); if(!s) return;
-  fetch(api(`/api/sensors/${selSensor}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!s.active})})
-    .then(r=>r.json()).then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); renderSensorList(); alertLog(`${u.name} ${u.active?'ACTIVATED':'DEACTIVATED'}`,u.active?'INFO':'WARNING'); });
+  fetchJSON(`/api/sensors/${selSensor}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!s.active})})
+    .then(u=>{ sensors=sensors.map(x=>x.sensorId===u.sensorId?u:x); drawSensor(u); renderSensorList(); alertLog(`${u.name} ${u.active?'ACTIVATED':'DEACTIVATED'}`,u.active?'INFO':'WARNING'); })
+    .catch(e=>alertLog(e.message,'WARNING'));
 }
 
 // ── Modality ───────────────────────────────────────────────────────────────
@@ -751,15 +769,10 @@ async function sendCmd(text) {
   const full = modality!=='ALL' ? `[${modality} CONTEXT] ${text}` : text;
   alertLog(text,'OP');
   try {
-    const res=await fetch(api('/api/command'),{
+    const data=await fetchJSON('/api/command',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text:full, drone_id:selDrone, conversation_history:convHistory})
     });
-    if (!res.ok) {
-      const err = await res.json().catch(()=>({detail:res.statusText}));
-      throw new Error(err.detail||res.statusText);
-    }
-    const data=await res.json();
     alertLog(data.response,'AI');
     speak(data.response);
     convHistory=data.updated_history;
