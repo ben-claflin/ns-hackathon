@@ -1,21 +1,43 @@
 # Drone C2 Platform
 
-Command and control platform for drone operations, powered by Palantir Foundry + Claude AI.
+Command and control platform for drone operations. Supports both live Foundry connection and GitHub-hosted sample data.
 
-## Architecture
+## Quick Start (No Foundry Access Needed)
 
+The platform works out-of-the-box with sample data stored in `/data/` folder:
+
+```bash
+# 1. Install
+pip install -r requirements.txt
+
+# 2. Add Anthropic API key
+cp .env.example .env
+# Edit .env: add your ANTHROPIC_API_KEY
+
+# 3. Run
+uvicorn backend:app --reload --port 8000
+
+# 4. Open frontend
+# http://localhost:8000
 ```
-Voice Input (Web Speech API)
-        ↓
-   FastAPI Backend (backend.py)
-        ↓
-   Claude API (claude-sonnet-4-6)  ←── tool calls
-        ↓
-   Foundry Client (foundry_client.py)
-        ↓
-   Palantir Foundry (nshackathon.palantirfoundry.com)
-   Datasets: drone_telemetry_points, drone_missions
+
+The backend automatically uses GitHub data (JSON files in `/data/` folder) if Foundry is not accessible.
+
+### Updating Sample Data
+
+Edit the JSON files directly or generate new data:
+
+```bash
+# Generate 5 drones, 600 seconds of telemetry
+python generate_sample_data.py --drones 5 --duration 600 --output data/
+
+# Commit and push
+git add data/
+git commit -m "Update sample drone data"
+git push
 ```
+
+The frontend will pick up changes automatically.
 
 ## Deployment
 
@@ -23,36 +45,25 @@ Voice Input (Web Speech API)
 
 **Backend:** Runs locally at the hackathon venue (required for Foundry IP allowlist)
 
-## Local Setup & Running at the Venue
+---
 
-### 1. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+## Live Foundry Connection (Optional, requires venue network)
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY
-# FOUNDRY_TOKEN and FOUNDRY_HOST are already set
-```
+If you have access to the Foundry instance and are on an allowlisted network:
 
-### 3. Discover Foundry resource IDs (from hackathon venue WiFi)
+### 1. Discover Foundry resource IDs
 ```bash
+# Run this from the hackathon venue WiFi
 python discover.py
-# Copy the output lines into .env
+# Copy the output RIDs into .env
 ```
 
-### 4. Start the backend server
+### 2. Start backend
 ```bash
 uvicorn backend:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 5. Access the frontend
-- **If running locally:** Open `http://localhost:8000`
-- **If running on GitHub Pages:** Open `https://ben-claflin.github.io/ns-hackathon/`
-  - It will prompt for backend URL — enter `http://<your-machine-ip>:8000`
-  - Or click the BACKEND indicator in top-right to change it anytime
+The backend will automatically use Foundry if the RIDs are configured and the IP is allowlisted. Otherwise, it falls back to GitHub data.
 
 ## Usage
 

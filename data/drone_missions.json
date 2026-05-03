@@ -1,0 +1,108 @@
+[
+  {
+    "missionId": "MISSION-001",
+    "droneId": "ALPHA-001",
+    "missionName": "Perimeter Patrol",
+    "status": "ACTIVE",
+    "startTime": "2026-05-03T14:00:00Z",
+    "plannedEndTime": "2026-05-03T14:30:00Z",
+    "waypoints": [
+      {
+        "sequence": 1,
+        "latitude": 38.9072,
+        "longitude": -77.0369,
+        "altitude": 120,
+        "action": "LOITER"
+      },
+      {
+        "sequence": 2,
+        "latitude": 38.9150,
+        "longitude": -77.0250,
+        "altitude": 150,
+        "action": "SURVEY"
+      },
+      {
+        "sequence": 3,
+        "latitude": 38.9000,
+        "longitude": -77.0500,
+        "altitude": 140,
+        "action": "LOITER"
+      },
+      {
+        "sequence": 4,
+        "latitude": 38.9072,
+        "longitude": -77.0369,
+        "altitude": 120,
+        "action": "RTB"
+      }
+    ],
+    "currentWaypoint": 1,
+    "progress": 15
+  },
+  {
+    "missionId": "MISSION-002",
+    "droneId": "BETA-002",
+    "missionName": "Area Reconnaissance",
+    "status": "ACTIVE",
+    "startTime": "2026-05-03T13:45:00Z",
+    "plannedEndTime": "2026-05-03T15:00:00Z",
+    "waypoints": [
+      {
+        "sequence": 1,
+        "latitude": 38.8950,
+        "longitude": -77.0450,
+        "altitude": 85,
+        "action": "PHOTO"
+      },
+      {
+        "sequence": 2,
+        "latitude": 38.8850,
+        "longitude": -77.0350,
+        "altitude": 100,
+        "action": "VIDEO"
+      },
+      {
+        "sequence": 3,
+        "latitude": 38.8950,
+        "longitude": -77.0450,
+        "altitude": 85,
+        "action": "RTB"
+      }
+    ],
+    "currentWaypoint": 1,
+    "progress": 22
+  },
+  {
+    "missionId": "MISSION-003",
+    "droneId": "GAMMA-003",
+    "missionName": "Corridor Patrol",
+    "status": "ACTIVE",
+    "startTime": "2026-05-03T14:00:00Z",
+    "plannedEndTime": "2026-05-03T14:45:00Z",
+    "waypoints": [
+      {
+        "sequence": 1,
+        "latitude": 38.9150,
+        "longitude": -77.0250,
+        "altitude": 200,
+        "action": "LOITER"
+      },
+      {
+        "sequence": 2,
+        "latitude": 38.9100,
+        "longitude": -77.0150,
+        "altitude": 210,
+        "action": "SURVEY"
+      },
+      {
+        "sequence": 3,
+        "latitude": 38.9150,
+        "longitude": -77.0250,
+        "altitude": 200,
+        "action": "RTB"
+      }
+    ],
+    "currentWaypoint": 1,
+    "progress": 8
+  }
+]
