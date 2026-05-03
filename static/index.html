@@ -318,7 +318,8 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
 const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const isStaticHost = location.protocol === 'file:' || location.hostname.endsWith('github.io');
 const sameOriginBackend = `${location.protocol}//${location.host}`;
-let BACKEND = localStorage.getItem('cuasBackendUrl') || (isStaticHost ? 'http://localhost:8000' : sameOriginBackend);
+const backendParam = new URLSearchParams(location.search).get('backend');
+let BACKEND = backendParam || (isLocal ? sameOriginBackend : (localStorage.getItem('cuasBackendUrl') || (isStaticHost ? 'http://localhost:8000' : sameOriginBackend)));
 document.getElementById('backend-info').textContent = 'BACKEND: ' + BACKEND.replace(/https?:\/\//,'');
 document.getElementById('backend-info').onclick = () => {
   const u = prompt('Backend URL:', BACKEND);
@@ -330,6 +331,21 @@ document.getElementById('backend-info').onclick = () => {
   }
 };
 const api = p => BACKEND + p;
+function clearMapLayers() {
+  [droneMarkers, droneTrails, threatMarkers, threatTrails, sensorMarkers, sensorOverlays, assetMarkers, assetRangeCircles]
+    .forEach(group => Object.values(group).forEach(layer => layer?.remove?.()));
+  droneMarkers={}; droneTrails={}; threatMarkers={}; threatTrails={};
+  sensorMarkers={}; sensorOverlays={}; assetMarkers={}; assetRangeCircles={};
+}
+function fitMapToData() {
+  const bounds = [];
+  sensors.forEach(s => bounds.push([s.position.latitude, s.position.longitude]));
+  responseAssets.forEach(a => bounds.push([a.position.latitude, a.position.longitude]));
+  threats.forEach(t => (t.track||[]).forEach(p => bounds.push([p.latitude, p.longitude])));
+  Object.values(droneLatest).forEach(p => bounds.push([p.latitude||p.lat, p.longitude||p.lon]));
+  const valid = bounds.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (valid.length) map.fitBounds(valid, {padding:[32,32], maxZoom:14});
+}
 async function fetchJSON(path, options) {
   const url = api(path);
   const res = await fetch(url, options);
@@ -528,6 +544,7 @@ function drawAllThreats() {
 // ── Load all data ──────────────────────────────────────────────────────────
 async function loadAll() {
   try {
+    clearMapLayers();
     const [dr,sr,tr,ar,mc,st] = await Promise.all([
       fetchJSON('/api/drones'),
       fetchJSON('/api/sensors'),
@@ -540,7 +557,6 @@ async function loadAll() {
     sensors        = sr.sensors||[];
     threats        = tr.threats||[];
     responseAssets = ar.assets||[];
-    // Auto-center map on data centroid
     if (mc?.latitude) map.setView([mc.latitude, mc.longitude], mc.zoom||13);
 
     document.getElementById('h-friendly').textContent = `${drones.length} FRIENDLY`;
@@ -560,6 +576,7 @@ async function loadAll() {
     responseAssets.forEach(drawAsset);
     drawAllThreats();
     await drawAllDrones();
+    fitMapToData();
     const source = st?.data_source ? st.data_source.replace('DataClient','') : 'backend';
     alertLog(`Loaded from ${source}: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors, ${responseAssets.length} response assets`,'INFO');
   } catch(e) { alertLog('Load failed: '+e.message,'WARNING'); }
