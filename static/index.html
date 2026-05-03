@@ -21,6 +21,8 @@
   --uas-int:  #44aaff;
   --cram:     #00ff88;
   --patriot:  #ffcc00;
+  --ew:       #ff88ff;
+  --manpads:  #ff9944;
   --text:     #b8ccd8;
   --dim:      #4a6a7a;
 }
@@ -225,12 +227,14 @@ header h1 { color: var(--danger); font-size: 13px; letter-spacing: 3px; white-sp
   <div class="map-wrap">
     <div id="map"></div>
     <div class="map-legend">
-      <div class="lr"><div class="ls" style="background:var(--accent)"></div>Friendly UAS</div>
       <div class="lr"><div class="ls" style="background:var(--hostile);clip-path:polygon(50% 0%,100% 100%,0% 100%)"></div>Hostile track</div>
-      <div class="lr"><div class="ls" style="background:var(--uas-int)"></div>UAS Interceptor</div>
+      <div class="lr"><div class="ls" style="background:var(--accent)"></div>Friendly UAS</div>
       <div class="lr"><div class="ls" style="background:var(--cram);border-radius:2px"></div>C-RAM</div>
-      <div class="lr"><div class="ls" style="background:var(--patriot);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>Patriot</div>
-      <div class="lr"><div class="ls" style="background:var(--rf)"></div>RF sensor</div>
+      <div class="lr"><div class="ls" style="background:var(--patriot)"></div>Patriot PAC-3</div>
+      <div class="lr"><div class="ls" style="background:var(--ew)"></div>EW Jammer</div>
+      <div class="lr"><div class="ls" style="background:var(--manpads)"></div>MANPADS</div>
+      <div class="lr"><div class="ls" style="background:var(--uas-int)"></div>UAS Interceptor</div>
+      <div class="lr"><div class="ls" style="background:var(--rf)"></div>RF / Radar sensor</div>
       <div class="lr"><div class="ls" style="background:var(--acoustic)"></div>Acoustic sensor</div>
       <div class="lr"><div class="ls" style="background:var(--imagery)"></div>EO/IR sensor</div>
     </div>
@@ -324,7 +328,7 @@ setInterval(() => document.getElementById('clock').textContent =
   new Date().toUTCString().slice(17,25) + ' UTC', 1000);
 
 // ── Map ────────────────────────────────────────────────────────────────────
-const map = L.map('map', { center: [38.905,-77.037], zoom: 13 });
+const map = L.map('map', { center: [30.270,-97.745], zoom: 13 });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
   { attribution:'&copy; CartoDB', maxZoom:19 }).addTo(map);
 
@@ -359,14 +363,19 @@ const sensorIcon = (type, active) => {
     iconSize:[18,18], iconAnchor:[9,9], className:''
   });
 };
-const assetIcon = type => {
-  const cfg = {
-    UAS_INTERCEPTOR: { color:'#44aaff', shape:'◆', size:16 },
-    CRAM:            { color:'#00ff88', shape:'▪', size:20 },
-    PATRIOT:         { color:'#ffcc00', shape:'★', size:18 },
-  }[type] || { color:'#888', shape:'●', size:14 };
+const ASSET_CFG = {
+  UAS_INTERCEPTOR: { color:'#44aaff', shape:'◆', size:16 },
+  CRAM:            { color:'#00ff88', shape:'▪', size:22 },
+  PATRIOT:         { color:'#ffcc00', shape:'★', size:18 },
+  EW_JAMMER:       { color:'#ff88ff', shape:'⚡', size:17 },
+  MANPADS:         { color:'#ff9944', shape:'↑', size:20 },
+  INTERCEPTOR:     { color:'#88ccff', shape:'▶', size:16 },
+};
+const assetIcon = (type, status) => {
+  const cfg = ASSET_CFG[type] || { color:'#888', shape:'●', size:14 };
+  const c = status === 'ENGAGED' ? cfg.color : cfg.color + 'aa';
   return L.divIcon({
-    html:`<div style="color:${cfg.color};font-size:${cfg.size}px;text-shadow:0 0 6px ${cfg.color};line-height:1;cursor:pointer">${cfg.shape}</div>`,
+    html:`<div style="color:${c};font-size:${cfg.size}px;text-shadow:0 0 6px ${c};line-height:1;cursor:pointer">${cfg.shape}</div>`,
     iconSize:[22,22], iconAnchor:[11,11], className:''
   });
 };
@@ -413,19 +422,26 @@ function drawAsset(a) {
   const {latitude:lat, longitude:lon} = a.position;
   const cap = a.capabilities||{};
   const rangeM = cap.maxRangeM||0;
-  const colors = {UAS_INTERCEPTOR:'#44aaff',CRAM:'#00ff88',PATRIOT:'#ffcc00'};
-  const col = colors[a.type]||'#888';
-  const statusAlpha = a.status==='ENGAGED' ? 0.22 : 0.08;
+  const cfg = ASSET_CFG[a.type] || { color:'#888' };
+  const col = cfg.color;
+  const engaged = a.status === 'ENGAGED';
+  const statusAlpha = engaged ? 0.18 : 0.06;
 
   if (assetRangeCircles[a.assetId]) assetRangeCircles[a.assetId].remove();
   assetRangeCircles[a.assetId] = L.circle([lat,lon], {
     radius:rangeM, color:col, fillColor:col, fillOpacity:statusAlpha,
-    weight:1, opacity:.35, dashArray:'4 4'
+    weight: engaged ? 2 : 1, opacity: engaged ? .6 : .3, dashArray:'5 4'
   }).addTo(map);
 
   if (assetMarkers[a.assetId]) assetMarkers[a.assetId].remove();
-  const m = L.marker([lat,lon], {icon:assetIcon(a.type), title:a.name}).addTo(map);
-  m.bindTooltip(`<b>${a.name}</b><br>Status: ${a.status}<br>Range: ${(rangeM/1000).toFixed(0)}km<br>Pk: ${cap.pkill||0}<br>${a.status_detail||''}`, {direction:'top'});
+  const m = L.marker([lat,lon], {icon:assetIcon(a.type, a.status), title:a.name}).addTo(map);
+  const inv = a.ammo ? ` · ${a.ammo.current} ${a.ammo.unit}` : '';
+  m.bindTooltip(
+    `<b>${a.name}</b><br>Type: ${a.type}<br>Status: ${a.status}<br>`+
+    `Range: ${(rangeM/1000).toFixed(1)}km · Pk: ${(cap.pkill||0)*100|0}%<br>`+
+    `Response: ${cap.responseTimeSec||'?'}s${inv}<br>${a.status_detail||''}`,
+    {direction:'top'}
+  );
   m.on('click', () => selectAsset(a.assetId));
   assetMarkers[a.assetId] = m;
 }
@@ -450,16 +466,19 @@ function drawAllThreats() {
 // ── Load all data ──────────────────────────────────────────────────────────
 async function loadAll() {
   try {
-    const [dr,sr,tr,ar] = await Promise.all([
+    const [dr,sr,tr,ar,mc] = await Promise.all([
       fetch(api('/api/drones')).then(r=>r.json()),
       fetch(api('/api/sensors')).then(r=>r.json()),
       fetch(api('/api/threats')).then(r=>r.json()),
       fetch(api('/api/response-assets')).then(r=>r.json()),
+      fetch(api('/api/map-center')).then(r=>r.json()),
     ]);
     drones         = dr.drones||[];
     sensors        = sr.sensors||[];
     threats        = tr.threats||[];
     responseAssets = ar.assets||[];
+    // Auto-center map on data centroid
+    if (mc?.latitude) map.setView([mc.latitude, mc.longitude], mc.zoom||13);
 
     document.getElementById('h-friendly').textContent = `${drones.length} FRIENDLY`;
     document.getElementById('h-threats').textContent  = `${threats.length} THREATS`;
@@ -506,17 +525,19 @@ function renderThreatList() {
 }
 
 function renderAssetList() {
-  const icons={UAS_INTERCEPTOR:'◆',CRAM:'▪',PATRIOT:'★'};
-  const colors={UAS_INTERCEPTOR:'var(--uas-int)',CRAM:'var(--cram)',PATRIOT:'var(--patriot)'};
-  document.getElementById('asset-list').innerHTML = responseAssets.map(a=>`
-    <div class="item" onclick="selectAsset('${a.assetId}')">
-      <span class="item-icon" style="color:${colors[a.type]||'#888'}">${icons[a.type]||'●'}</span>
+  document.getElementById('asset-list').innerHTML = responseAssets.map(a=>{
+    const cfg = ASSET_CFG[a.type] || {color:'#888', shape:'●'};
+    const rangeKm = ((a.capabilities?.maxRangeM||0)/1000).toFixed(1);
+    const inv = a.ammo ? ` · ${a.ammo.current}` : '';
+    return `<div class="item" onclick="selectAsset('${a.assetId}')">
+      <span class="item-icon" style="color:${cfg.color}">${cfg.shape}</span>
       <div style="flex:1">
-        <div class="item-name" style="color:${colors[a.type]||'#888'}">${a.name}</div>
-        <div class="item-meta">${a.type} · ${((a.capabilities?.maxRangeM||0)/1000).toFixed(0)}km range</div>
+        <div class="item-name" style="color:${cfg.color}">${a.name}</div>
+        <div class="item-meta">${a.type} · ${rangeKm}km${inv}</div>
       </div>
       <span class="badge ${a.status==='READY'?'bl':a.status==='ENGAGED'?'beng':'bm'}">${a.status}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderSensorList() {

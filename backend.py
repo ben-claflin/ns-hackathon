@@ -20,6 +20,21 @@ from github_data_client import GitHubDataClient
 load_dotenv()
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
+def _make_data_client():
+    """Try PostgreSQL first; fall back to JSON files."""
+    if os.environ.get("POSTGRES_HOST"):
+        try:
+            from db_client import PostgresDataClient
+            client = PostgresDataClient()
+            # Smoke-test the connection
+            client.get_sensors()
+            print("[INFO] Using PostgreSQL data source")
+            return client
+        except Exception as e:
+            print(f"[WARN] PostgreSQL unavailable ({e}), falling back to JSON files")
+    print("[INFO] Using JSON file data source")
+    return GitHubDataClient()
+
 # ── Claude tools ───────────────────────────────────────────────────────────
 
 CLAUDE_TOOLS = [
@@ -171,8 +186,7 @@ data_client: Optional[GitHubDataClient] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global data_client
-    data_client = GitHubDataClient()
-    print("[INFO] C-UAS data client ready")
+    data_client = _make_data_client()
     yield
     data_client.close()
 
@@ -294,6 +308,12 @@ async def api_update_asset(asset_id: str, patch: dict):
 @app.get("/api/recommend/{threat_id}")
 async def api_recommend(threat_id: str):
     return data_client.recommend_counteraction(threat_id)
+
+@app.get("/api/map-center")
+async def api_map_center():
+    if hasattr(data_client, "get_map_center"):
+        return data_client.get_map_center()
+    return {"latitude": 38.905, "longitude": -77.037, "zoom": 13}
 
 
 # ── Command (Claude agentic loop) ──────────────────────────────────────────
