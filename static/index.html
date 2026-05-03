@@ -3,157 +3,300 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Drone C2 Platform</title>
+<title>C-UAS Command & Control</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  :root {
-    --bg: #0a0e14;
-    --panel: #111820;
-    --border: #1e3040;
-    --accent: #00d4ff;
-    --accent2: #00ff88;
-    --warn: #ff6b35;
-    --danger: #ff3030;
-    --text: #c8d8e8;
-    --dim: #5a7a8a;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+:root {
+  --bg:      #080c10;
+  --panel:   #0d1520;
+  --border:  #1a2e40;
+  --accent:  #00d4ff;
+  --green:   #00ff88;
+  --warn:    #ffaa00;
+  --danger:  #ff3030;
+  --hostile: #ff4422;
+  --rf:      #cc44ff;
+  --acoustic:#00ffcc;
+  --imagery: #ffdd00;
+  --text:    #b8ccd8;
+  --dim:     #4a6a7a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 12px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  /* ── Header ── */
-  header { display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
-  header h1 { color: var(--accent); font-size: 16px; letter-spacing: 3px; text-transform: uppercase; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .header-spacer { flex: 1; }
-  #foundry-status { font-size: 11px; color: var(--dim); }
-  .backend-config { font-size: 9px; color: var(--dim); margin-left: auto; padding-right: 8px; cursor: help; }
-  .backend-config:hover { color: var(--accent); }
+/* ── Header ── */
+header { display: flex; align-items: center; gap: 12px; padding: 6px 14px; background: var(--panel); border-bottom: 1px solid var(--border); min-height: 38px; }
+header h1 { color: var(--danger); font-size: 14px; letter-spacing: 3px; }
+.hdr-sep { color: var(--border); }
+.hdr-stat { font-size: 10px; display: flex; align-items: center; gap: 5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot.green  { background: var(--green);   box-shadow: 0 0 5px var(--green); }
+.dot.red    { background: var(--danger);  box-shadow: 0 0 5px var(--danger); }
+.dot.yellow { background: var(--warn);    box-shadow: 0 0 5px var(--warn); animation: blink .8s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.hdr-right { margin-left: auto; display: flex; gap: 14px; align-items: center; font-size: 10px; color: var(--dim); }
+#backend-info { cursor: pointer; }
+#backend-info:hover { color: var(--accent); }
 
-  /* ── Layout ── */
-  .main { display: grid; grid-template-columns: 280px 1fr 300px; flex: 1; overflow: hidden; }
+/* ── Layout ── */
+.layout { display: grid; grid-template-columns: 240px 1fr 280px; flex: 1; overflow: hidden; }
 
-  /* ── Left panel ── */
-  .panel { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-  .panel-title { padding: 10px 14px; font-size: 11px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); }
-  .panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+/* ── Shared panel ── */
+.panel { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.panel.right { border-right: none; border-left: 1px solid var(--border); }
+.ptitle { padding: 7px 10px; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.pbody { flex: 1; overflow-y: auto; }
 
-  .drone-list { list-style: none; }
-  .drone-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.2s; }
-  .drone-item:hover { border-color: var(--accent); }
-  .drone-item.active { border-color: var(--accent2); background: #0a1f10; }
-  .drone-id { color: var(--accent); font-weight: bold; font-size: 12px; }
-  .drone-status { font-size: 11px; color: var(--dim); margin-top: 2px; }
-  .drone-status.airborne { color: var(--accent2); }
-  .drone-status.warning { color: var(--warn); }
+/* ── Left: assets + sensors ── */
+.section-hdr { padding: 5px 10px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); background: #0a1018; border-bottom: 1px solid var(--border); }
 
-  #load-drones-btn { width: 100%; padding: 8px; background: #0a1a2a; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 4px; letter-spacing: 1px; font-family: inherit; font-size: 12px; }
-  #load-drones-btn:hover { background: #0d2035; }
+.asset-item { padding: 7px 10px; border-bottom: 1px solid #0d1a24; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background .15s; }
+.asset-item:hover { background: #111e28; }
+.asset-item.active { background: #0a1f10; border-left: 2px solid var(--green); }
+.asset-item.threat-item { border-left: 2px solid transparent; }
+.asset-item.threat-item.high   { border-left-color: var(--danger); }
+.asset-item.threat-item.medium { border-left-color: var(--warn); }
+.asset-icon { font-size: 14px; }
+.asset-name { font-size: 11px; font-weight: bold; flex: 1; }
+.asset-name.friendly { color: var(--accent); }
+.asset-name.hostile  { color: var(--hostile); }
+.asset-meta { font-size: 9px; color: var(--dim); }
+.badge { font-size: 9px; padding: 1px 5px; border-radius: 2px; }
+.badge.high    { background: #3a0808; color: var(--danger); }
+.badge.medium  { background: #2a1e00; color: var(--warn); }
+.badge.low     { background: #0a2a10; color: var(--green); }
+.badge.tracking{ background: #0a1a3a; color: var(--accent); }
 
-  /* ── Map ── */
-  #map { flex: 1; background: #060d14; }
-  .map-container { position: relative; display: flex; flex-direction: column; }
-  .timeline-bar { background: var(--panel); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
-  .timeline-bar label { font-size: 11px; color: var(--dim); white-space: nowrap; }
-  #timeline { flex: 1; accent-color: var(--accent); }
-  #time-display { font-size: 11px; color: var(--accent); min-width: 160px; text-align: right; }
-  #speed-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px; font-family: inherit; font-size: 11px; }
-  #playback-btn { padding: 4px 12px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 1px; }
-  #playback-btn:hover { opacity: 0.85; }
-  #playback-btn.playing { background: var(--warn); }
+/* Sensor items */
+.sensor-item { padding: 7px 10px; border-bottom: 1px solid #0d1a24; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.sensor-item:hover { background: #111e28; }
+.sensor-item.selected { background: #0a1a2a; border-left: 2px solid var(--accent); }
+.sensor-item.inactive { opacity: .45; }
+.s-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.s-indicator.RF       { background: var(--rf);       box-shadow: 0 0 4px var(--rf); }
+.s-indicator.ACOUSTIC { background: var(--acoustic); box-shadow: 0 0 4px var(--acoustic); }
+.s-indicator.IMAGERY  { background: var(--imagery);  box-shadow: 0 0 4px var(--imagery); }
+.s-indicator.inactive { background: var(--dim); box-shadow: none; }
+.s-name { font-size: 11px; flex: 1; }
+.s-meta { font-size: 9px; color: var(--dim); }
 
-  /* ── Right panel ── */
-  .right-panel { background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+/* Sensor editor */
+.sensor-editor { padding: 8px; border-top: 1px solid var(--border); background: #060d14; }
+.editor-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.editor-label { font-size: 10px; color: var(--dim); width: 70px; }
+.editor-input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 3px; font-family: inherit; font-size: 11px; }
+.editor-input:focus { outline: none; border-color: var(--accent); }
+.editor-btn { padding: 4px 10px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; border-radius: 3px; font-size: 10px; font-family: inherit; }
+.editor-btn:hover { background: #0a1a2a; }
+.editor-btn.danger { border-color: var(--danger); color: var(--danger); }
 
-  /* Telemetry readout */
-  .telemetry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
-  .telem-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
-  .telem-label { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
-  .telem-value { font-size: 16px; color: var(--accent); margin-top: 2px; }
-  .telem-unit { font-size: 10px; color: var(--dim); }
+/* ── Map ── */
+.map-wrap { position: relative; display: flex; flex-direction: column; }
+#map { flex: 1; background: #050b12; }
 
-  /* Voice + chat */
-  .voice-section { border-top: 1px solid var(--border); padding: 10px; flex: 1; display: flex; flex-direction: column; }
-  .chat-log { flex: 1; overflow-y: auto; margin-bottom: 8px; font-size: 12px; }
-  .chat-msg { padding: 4px 0; border-bottom: 1px solid #111f28; }
-  .chat-msg.operator { color: var(--accent2); }
-  .chat-msg.ai { color: var(--text); }
-  .chat-msg.system { color: var(--dim); font-style: italic; }
+/* Map legend */
+.map-legend { position: absolute; bottom: 50px; right: 8px; background: rgba(13,21,32,.92); border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 10px; z-index: 1000; }
+.legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
-  .voice-controls { display: flex; gap: 8px; }
-  #voice-btn { flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 4px; font-family: inherit; font-size: 12px; letter-spacing: 1px; transition: all 0.2s; }
-  #voice-btn:hover { background: #0a1a2a; }
-  #voice-btn.recording { border-color: var(--danger); color: var(--danger); animation: pulse 0.8s infinite; }
-  #send-btn { padding: 10px 14px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: bold; }
-  #text-input { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; border-radius: 3px; margin-bottom: 6px; }
-  #text-input:focus { outline: none; border-color: var(--accent); }
+/* Timeline */
+.timeline-bar { background: var(--panel); border-top: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 10px; }
+.tl-label { font-size: 10px; color: var(--dim); white-space: nowrap; }
+#timeline { flex: 1; accent-color: var(--accent); }
+#time-display { font-size: 10px; color: var(--accent); min-width: 160px; text-align: right; }
+#speed-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 5px; border-radius: 3px; font-family: inherit; font-size: 10px; }
+#playback-btn { padding: 3px 10px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 11px; font-weight: bold; }
+#playback-btn.playing { background: var(--warn); }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* ── Right: telemetry + alerts + voice ── */
+.right-panel { display: flex; flex-direction: column; }
+
+/* Telemetry readout */
+.telem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px; }
+.tc { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 6px; }
+.tc-label { font-size: 9px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+.tc-val   { font-size: 14px; color: var(--accent); margin-top: 1px; }
+.tc-unit  { font-size: 9px; color: var(--dim); }
+.tc.full  { grid-column: 1/-1; }
+
+/* Threat detail */
+.threat-detail { padding: 8px; border-top: 1px solid var(--border); }
+.td-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.td-key { font-size: 10px; color: var(--dim); }
+.td-val { font-size: 10px; color: var(--text); }
+.conf-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+.conf-fill { height: 100%; border-radius: 2px; background: var(--green); }
+
+/* Alert log */
+.alert-log { border-top: 1px solid var(--border); flex: 1; overflow-y: auto; }
+.alert-msg { padding: 4px 8px; border-bottom: 1px solid #0d1a24; font-size: 10px; }
+.alert-msg.THREAT  { border-left: 2px solid var(--danger); }
+.alert-msg.WARNING { border-left: 2px solid var(--warn); }
+.alert-msg.INFO    { border-left: 2px solid var(--accent); }
+.alert-msg.AI      { border-left: 2px solid var(--green); color: var(--text); }
+.alert-msg.OP      { border-left: 2px solid var(--dim); color: var(--green); }
+.alert-time { color: var(--dim); margin-right: 6px; }
+
+/* Voice section */
+.voice-section { border-top: 1px solid var(--border); padding: 8px; }
+.voice-modality { display: flex; gap: 4px; margin-bottom: 6px; }
+.mod-btn { flex: 1; padding: 4px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; border-radius: 3px; font-size: 9px; font-family: inherit; letter-spacing: 1px; transition: all .15s; }
+.mod-btn:hover { border-color: var(--text); color: var(--text); }
+.mod-btn.active { color: var(--bg); }
+.mod-btn.RF.active       { background: var(--rf);       border-color: var(--rf); }
+.mod-btn.ACOUSTIC.active { background: var(--acoustic); border-color: var(--acoustic); }
+.mod-btn.IMAGERY.active  { background: var(--imagery);  border-color: var(--imagery); color: #000; }
+.mod-btn.ALL.active      { background: var(--accent);   border-color: var(--accent); }
+.voice-controls { display: flex; gap: 6px; }
+#text-input { flex: 1; padding: 5px 7px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 11px; border-radius: 3px; }
+#text-input:focus { outline: none; border-color: var(--accent); }
+#voice-btn { padding: 5px 10px; background: var(--bg); border: 1px solid var(--accent); color: var(--accent); cursor: pointer; border-radius: 3px; font-size: 11px; font-family: inherit; }
+#voice-btn.recording { border-color: var(--danger); color: var(--danger); animation: blink .6s infinite; }
+#send-btn { padding: 5px 10px; background: var(--accent); color: var(--bg); border: none; cursor: pointer; border-radius: 3px; font-family: inherit; font-size: 11px; font-weight: bold; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="status-dot"></div>
-  <h1>Drone C2 Platform</h1>
-  <div class="header-spacer"></div>
-  <div class="backend-config" id="backend-info" title="Click to change backend URL">BACKEND: --</div>
-  <span id="foundry-status">FOUNDRY: CONNECTING...</span>
+  <div class="dot red" id="threat-dot"></div>
+  <h1>C-UAS C2</h1>
+  <span class="hdr-sep">|</span>
+  <div class="hdr-stat"><div class="dot green"></div><span id="friendly-count">0 FRIENDLY</span></div>
+  <div class="hdr-stat"><div class="dot red" id="threat-status-dot"></div><span id="threat-count">0 THREATS</span></div>
+  <div class="hdr-stat"><div class="dot green" id="sensor-dot"></div><span id="sensor-count">0 SENSORS</span></div>
+  <div class="hdr-right">
+    <span id="backend-info" title="Click to change">BACKEND: localhost:8000</span>
+    <span id="clock">--:--:--</span>
+  </div>
 </header>
 
-<div class="main">
+<div class="layout">
 
-  <!-- Left: drone list -->
+  <!-- ── Left panel ── -->
   <div class="panel">
-    <div class="panel-title">Assets</div>
-    <div class="panel-body">
-      <button id="load-drones-btn">LOAD DRONES</button>
-      <ul class="drone-list" id="drone-list" style="margin-top:10px"></ul>
+    <div class="ptitle">Assets & Sensors</div>
+    <div class="pbody" id="left-panel-body">
+
+      <div class="section-hdr">Friendly UAS</div>
+      <div id="friendly-list"></div>
+
+      <div class="section-hdr" style="display:flex;justify-content:space-between">
+        <span>Threats</span>
+        <span id="threat-badge" style="color:var(--danger)"></span>
+      </div>
+      <div id="threat-list"></div>
+
+      <div class="section-hdr">Sensor Network</div>
+      <div id="sensor-list"></div>
+    </div>
+
+    <!-- Sensor editor (shown when a sensor is selected) -->
+    <div class="sensor-editor" id="sensor-editor" style="display:none">
+      <div class="ptitle" style="margin:-8px -8px 8px">Sensor: <span id="editor-sensor-id">--</span></div>
+      <div class="editor-row">
+        <span class="editor-label">Bearing °</span>
+        <input class="editor-input" id="editor-orientation" type="number" min="0" max="359" placeholder="0-359">
+      </div>
+      <div class="editor-row">
+        <span class="editor-label">Type</span>
+        <select class="editor-input" id="editor-type">
+          <option value="ACOUSTIC">ACOUSTIC</option>
+          <option value="RF">RF</option>
+          <option value="IMAGERY">IMAGERY</option>
+        </select>
+      </div>
+      <div class="editor-row" id="editor-modality-row" style="display:none">
+        <span class="editor-label">Modality</span>
+        <select class="editor-input" id="editor-modality">
+          <option value="EO">EO (Electro-Optical)</option>
+          <option value="IR">IR (Infrared)</option>
+        </select>
+      </div>
+      <div class="editor-row">
+        <button class="editor-btn" onclick="applyEditorUpdate()">APPLY</button>
+        <button class="editor-btn danger" onclick="toggleSensorActive()">TOGGLE ACTIVE</button>
+      </div>
+      <div style="font-size:9px;color:var(--dim);margin-top:2px">Drag marker on map to reposition</div>
     </div>
   </div>
 
-  <!-- Center: map + timeline -->
-  <div class="map-container">
+  <!-- ── Map ── -->
+  <div class="map-wrap">
     <div id="map"></div>
+
+    <div class="map-legend">
+      <div class="legend-row"><div class="legend-swatch" style="background:var(--accent)"></div>Friendly UAS</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:var(--hostile)"></div>Hostile track</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:var(--rf)"></div>RF sensor</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:var(--acoustic)"></div>Acoustic sensor</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:var(--imagery)"></div>EO/IR sensor</div>
+    </div>
+
     <div class="timeline-bar">
-      <label>PLAYBACK</label>
+      <span class="tl-label">PLAYBACK</span>
       <input type="range" id="timeline" min="0" max="100" value="0" disabled>
       <span id="time-display">-- : -- : --</span>
-      <select id="speed-select">
-        <option value="1">1x</option>
-        <option value="5">5x</option>
-        <option value="30">30x</option>
-        <option value="60">60x</option>
-      </select>
+      <select id="speed-select"><option value="1">1x</option><option value="5">5x</option><option value="30">30x</option></select>
       <button id="playback-btn">▶ PLAY</button>
     </div>
   </div>
 
-  <!-- Right: telemetry + voice -->
-  <div class="right-panel">
-    <div class="panel-title">Telemetry</div>
-    <div class="telemetry-grid">
-      <div class="telem-cell"><div class="telem-label">Latitude</div><div class="telem-value" id="t-lat">--</div></div>
-      <div class="telem-cell"><div class="telem-label">Longitude</div><div class="telem-value" id="t-lon">--</div></div>
-      <div class="telem-cell"><div class="telem-label">Altitude</div><div class="telem-value" id="t-alt">--</div><div class="telem-unit">meters</div></div>
-      <div class="telem-cell"><div class="telem-label">Speed</div><div class="telem-value" id="t-spd">--</div><div class="telem-unit">m/s</div></div>
-      <div class="telem-cell"><div class="telem-label">Heading</div><div class="telem-value" id="t-hdg">--</div><div class="telem-unit">°</div></div>
-      <div class="telem-cell"><div class="telem-label">Battery</div><div class="telem-value" id="t-bat">--</div><div class="telem-unit">%</div></div>
-      <div class="telem-cell" style="grid-column:1/-1"><div class="telem-label">Status</div><div class="telem-value" id="t-status" style="font-size:13px">OFFLINE</div></div>
+  <!-- ── Right panel ── -->
+  <div class="panel right">
+    <div class="ptitle">Track Data</div>
+
+    <!-- Friendly drone telemetry -->
+    <div id="friendly-telem" style="display:none">
+      <div class="telem-grid">
+        <div class="tc"><div class="tc-label">Lat</div><div class="tc-val" id="t-lat">--</div></div>
+        <div class="tc"><div class="tc-label">Lon</div><div class="tc-val" id="t-lon">--</div></div>
+        <div class="tc"><div class="tc-label">Alt</div><div class="tc-val" id="t-alt">--</div><div class="tc-unit">m</div></div>
+        <div class="tc"><div class="tc-label">Speed</div><div class="tc-val" id="t-spd">--</div><div class="tc-unit">m/s</div></div>
+        <div class="tc"><div class="tc-label">Heading</div><div class="tc-val" id="t-hdg">--</div><div class="tc-unit">°</div></div>
+        <div class="tc"><div class="tc-label">Battery</div><div class="tc-val" id="t-bat">--</div><div class="tc-unit">%</div></div>
+        <div class="tc full"><div class="tc-label">Status</div><div class="tc-val" id="t-status" style="font-size:12px">--</div></div>
+      </div>
     </div>
 
-    <div class="voice-section">
-      <div class="panel-title" style="margin: 0 -10px 8px; padding: 6px 10px;">Command Interface</div>
-      <div class="chat-log" id="chat-log">
-        <div class="chat-msg system">System ready. Select a drone to begin.</div>
+    <!-- Threat detail -->
+    <div id="threat-telem" style="display:none">
+      <div class="threat-detail">
+        <div class="td-row"><span class="td-key">THREAT ID</span><span class="td-val" id="th-id">--</span></div>
+        <div class="td-row"><span class="td-key">CLASS</span><span class="td-val" id="th-class">--</span></div>
+        <div class="td-row"><span class="td-key">EST. TYPE</span><span class="td-val" id="th-type">--</span></div>
+        <div class="td-row"><span class="td-key">STATUS</span><span class="td-val" id="th-status">--</span></div>
+        <div class="td-row"><span class="td-key">THREAT LVL</span><span class="td-val" id="th-level">--</span></div>
+        <div class="td-row"><span class="td-key">SENSORS</span><span class="td-val" id="th-sensors">--</span></div>
+        <div class="td-row"><span class="td-key">CONFIDENCE</span><span class="td-val" id="th-conf">--</span></div>
+        <div class="conf-bar"><div class="conf-fill" id="th-conf-bar" style="width:0%"></div></div>
+        <div class="td-row" style="margin-top:6px"><span class="td-key">LAT/LON</span><span class="td-val" id="th-pos">--</span></div>
+        <div class="td-row"><span class="td-key">ALT</span><span class="td-val" id="th-alt">--</span></div>
+        <div class="td-row"><span class="td-key">SPEED</span><span class="td-val" id="th-spd">--</span></div>
+        <div class="td-row"><span class="td-key">HEADING</span><span class="td-val" id="th-hdg">--</span></div>
       </div>
-      <input type="text" id="text-input" placeholder="Type command or use voice...">
+    </div>
+
+    <div class="ptitle" style="margin-top:auto">Alert Log</div>
+    <div class="alert-log" id="alert-log"></div>
+
+    <!-- Voice -->
+    <div class="voice-section">
+      <div class="ptitle" style="margin:-8px -8px 6px">Command Interface</div>
+      <div class="voice-modality">
+        <button class="mod-btn ALL active" data-mode="ALL" onclick="setModality(this)">ALL</button>
+        <button class="mod-btn RF" data-mode="RF" onclick="setModality(this)">RF</button>
+        <button class="mod-btn ACOUSTIC" data-mode="ACOUSTIC" onclick="setModality(this)">ACOUSTIC</button>
+        <button class="mod-btn IMAGERY" data-mode="IMAGERY" onclick="setModality(this)">EO/IR</button>
+      </div>
       <div class="voice-controls">
-        <button id="voice-btn">🎤 VOICE</button>
-        <button id="send-btn">SEND</button>
+        <input type="text" id="text-input" placeholder="Command or voice...">
+        <button id="voice-btn">🎤</button>
+        <button id="send-btn">TX</button>
       </div>
     </div>
   </div>
@@ -162,194 +305,392 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ── Backend configuration ──────────────────────────────────────────────────
-// Detect if running locally or on GitHub Pages
-const LOCAL_BACKEND = 'http://localhost:8000';
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-let BACKEND_URL = isLocalhost ? LOCAL_BACKEND : prompt(
-  'Enter backend URL (e.g., http://192.168.1.100:8000):',
-  LOCAL_BACKEND
-) || LOCAL_BACKEND;
+// ── Backend config ─────────────────────────────────────────────────────────
+const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+let BACKEND = isLocal ? 'http://localhost:8000' : (prompt('Backend URL:', 'http://localhost:8000') || 'http://localhost:8000');
+document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND.replace('http://', '')}`;
+document.getElementById('backend-info').onclick = () => {
+  const u = prompt('Backend URL:', BACKEND);
+  if (u) { BACKEND = u; document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND.replace('http://','')}`; loadAll(); }
+};
+const api = path => BACKEND + path;
 
-document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND_URL}`;
-document.getElementById('backend-info').addEventListener('click', () => {
-  const url = prompt('Change backend URL:', BACKEND_URL);
-  if (url) {
-    BACKEND_URL = url;
-    document.getElementById('backend-info').textContent = `BACKEND: ${BACKEND_URL}`;
-  }
-});
+// ── Clock ──────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toUTCString().slice(17, 25) + ' UTC';
+}, 1000);
 
-// Helper to build API URLs
-function apiUrl(path) {
-  return BACKEND_URL + path;
-}
-
-// ── Map setup ──────────────────────────────────────────────────────────────
-const map = L.map('map', {
-  center: [38.9, -77.0],
-  zoom: 10,
-  zoomControl: true,
-});
-
+// ── Map ────────────────────────────────────────────────────────────────────
+const map = L.map('map', { center: [38.905, -77.037], zoom: 13, zoomControl: true });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; CartoDB',
-  maxZoom: 19,
+  attribution: '&copy; CartoDB', maxZoom: 19
 }).addTo(map);
 
-const droneIcon = L.divIcon({
-  html: '<div style="width:16px;height:16px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-  className: '',
-});
-
 // ── State ──────────────────────────────────────────────────────────────────
-let activeDrone = null;
-let telemetryData = [];
-let droneMarker = null;
-let trailPolyline = null;
-let playbackIndex = 0;
-let playbackTimer = null;
-let isPlaying = false;
+let sensors = [], threats = [], drones = [];
+let droneMarkers = {}, droneTrails = {};
+let threatMarkers = {}, threatTrails = {};
+let sensorMarkers = {}, sensorOverlays = {};
+let selectedSensor = null, selectedDrone = null, selectedThreat = null;
+let telemetryData = [], playbackIndex = 0, playbackTimer = null, isPlaying = false;
+let currentModality = 'ALL';
 let conversationHistory = [];
 
-// ── UI helpers ─────────────────────────────────────────────────────────────
-function log(text, cls = 'system') {
-  const log = document.getElementById('chat-log');
-  const div = document.createElement('div');
-  div.className = `chat-msg ${cls}`;
-  div.textContent = text;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+// ── Icons ──────────────────────────────────────────────────────────────────
+function friendlyIcon() {
+  return L.divIcon({
+    html: '<div style="width:14px;height:14px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
+    iconSize: [14,14], iconAnchor: [7,7], className: ''
+  });
+}
+function threatIcon(level) {
+  const c = level === 'HIGH' ? '#ff4422' : level === 'MEDIUM' ? '#ffaa00' : '#ff8800';
+  return L.divIcon({
+    html: `<div style="width:14px;height:14px;background:${c};border:2px solid #fff;clip-path:polygon(50% 0%,100% 100%,0% 100%);box-shadow:0 0 8px ${c}"></div>`,
+    iconSize: [14,14], iconAnchor: [7,10], className: ''
+  });
+}
+function sensorIcon(type, active) {
+  const colors = { RF: '#cc44ff', ACOUSTIC: '#00ffcc', IMAGERY: '#ffdd00' };
+  const shapes = { RF: '▲', ACOUSTIC: '◉', IMAGERY: '◈' };
+  const c = active ? (colors[type] || '#888') : '#333';
+  return L.divIcon({
+    html: `<div style="color:${c};font-size:18px;text-shadow:0 0 6px ${c};cursor:pointer">${shapes[type]||'●'}</div>`,
+    iconSize: [20,20], iconAnchor: [10,10], className: ''
+  });
 }
 
-function updateTelemetryDisplay(row) {
-  const p = row.properties || row;
-  const set = (id, val, digits = 2) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val != null ? (typeof val === 'number' ? val.toFixed(digits) : val) : '--';
-  };
-  set('t-lat', p.latitude || p.lat, 6);
-  set('t-lon', p.longitude || p.lon, 6);
-  set('t-alt', p.altitude || p.alt, 0);
-  set('t-spd', p.speed || p.groundSpeed, 1);
-  set('t-hdg', p.heading, 0);
-  set('t-bat', p.battery || p.batteryPercent, 0);
-  const statusEl = document.getElementById('t-status');
-  const status = p.status || p.flightStatus || 'ACTIVE';
-  statusEl.textContent = status;
-  statusEl.style.color = status === 'ACTIVE' || status === 'AIRBORNE' ? 'var(--accent2)' :
-                         status === 'WARNING' ? 'var(--warn)' : 'var(--accent)';
+// ── Sensor FOV cone ────────────────────────────────────────────────────────
+function sensorConeLatLngs(lat, lon, orientationDeg, fovDeg, rangeM) {
+  if (fovDeg >= 360) return null; // circle instead
+  const steps = 24;
+  const half = fovDeg / 2;
+  const pts = [[lat, lon]];
+  for (let i = 0; i <= steps; i++) {
+    const deg = (orientationDeg - half) + (fovDeg * i / steps);
+    const rad = deg * Math.PI / 180;
+    const dlat = (rangeM * Math.cos(rad)) / 111320;
+    const dlon = (rangeM * Math.sin(rad)) / (111320 * Math.cos(lat * Math.PI / 180));
+    pts.push([lat + dlat, lon + dlon]);
+  }
+  return pts;
 }
 
-function updateMapPosition(row) {
-  const p = row.properties || row;
-  const lat = p.latitude || p.lat;
-  const lon = p.longitude || p.lon;
+function sensorColor(type) {
+  return { RF: '#cc44ff', ACOUSTIC: '#00ffcc', IMAGERY: '#ffdd00' }[type] || '#888';
+}
+
+function drawSensor(s) {
+  const lat = s.position.latitude, lon = s.position.longitude;
+  const color = sensorColor(s.type);
+  const alpha = s.active ? 0.18 : 0.06;
+
+  // Overlay (cone or circle)
+  if (sensorOverlays[s.sensorId]) sensorOverlays[s.sensorId].remove();
+  if (s.fov >= 360) {
+    sensorOverlays[s.sensorId] = L.circle([lat, lon], {
+      radius: s.range, color, fillColor: color, fillOpacity: alpha,
+      weight: 1, opacity: s.active ? 0.5 : 0.2
+    }).addTo(map);
+  } else {
+    const pts = sensorConeLatLngs(lat, lon, s.orientation, s.fov, s.range);
+    sensorOverlays[s.sensorId] = L.polygon(pts, {
+      color, fillColor: color, fillOpacity: alpha,
+      weight: 1, opacity: s.active ? 0.5 : 0.2
+    }).addTo(map);
+  }
+
+  // Draggable marker
+  if (sensorMarkers[s.sensorId]) sensorMarkers[s.sensorId].remove();
+  const marker = L.marker([lat, lon], {
+    icon: sensorIcon(s.type, s.active),
+    draggable: true,
+    title: s.name,
+  }).addTo(map);
+
+  marker.on('dragend', e => {
+    const { lat: newLat, lng: newLon } = e.target.getLatLng();
+    const patch = { position: { latitude: newLat, longitude: newLon } };
+    fetch(api(`/api/sensors/${s.sensorId}`), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
+    }).then(r => r.json()).then(updated => {
+      sensors = sensors.map(x => x.sensorId === updated.sensorId ? updated : x);
+      drawSensor(updated);
+      alertLog(`${updated.name} repositioned`, 'INFO');
+    });
+  });
+
+  marker.on('click', () => selectSensor(s.sensorId));
+  sensorMarkers[s.sensorId] = marker;
+
+  // Bind tooltip
+  marker.bindTooltip(
+    `<b>${s.name}</b><br>Bearing: ${s.orientation}°<br>Range: ${s.range}m<br>${s.active ? 'ACTIVE' : 'INACTIVE'}`,
+    { className: 'leaflet-tooltip', direction: 'top' }
+  );
+}
+
+// ── Load all data ──────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [droneRes, sensorRes, threatRes] = await Promise.all([
+      fetch(api('/api/drones')).then(r => r.json()),
+      fetch(api('/api/sensors')).then(r => r.json()),
+      fetch(api('/api/threats')).then(r => r.json()),
+    ]);
+
+    drones = droneRes.drones || [];
+    sensors = sensorRes.sensors || [];
+    threats = threatRes.threats || [];
+
+    document.getElementById('friendly-count').textContent = `${drones.length} FRIENDLY`;
+    document.getElementById('sensor-count').textContent = `${sensors.filter(s=>s.active).length}/${sensors.length} SENSORS`;
+    renderAssetPanel();
+    renderSensorPanel();
+    renderThreatPanel();
+    drawAllSensors();
+    drawAllThreats();
+    alertLog(`Data loaded: ${drones.length} friendly, ${threats.length} threats, ${sensors.length} sensors`, 'INFO');
+  } catch (e) {
+    alertLog(`Load failed: ${e.message}`, 'WARNING');
+  }
+}
+
+// ── Render lists ───────────────────────────────────────────────────────────
+function renderAssetPanel() {
+  const el = document.getElementById('friendly-list');
+  el.innerHTML = drones.length === 0
+    ? '<div style="padding:8px 10px;color:var(--dim);font-size:10px">No friendly assets</div>'
+    : drones.map(id => `
+      <div class="asset-item ${selectedDrone===id?'active':''}" onclick="selectDrone('${id}')">
+        <span class="asset-icon">✈</span>
+        <div><div class="asset-name friendly">${id}</div><div class="asset-meta">FRIENDLY UAS</div></div>
+      </div>`).join('');
+}
+
+function renderThreatPanel() {
+  const el = document.getElementById('threat-list');
+  const badge = document.getElementById('threat-badge');
+  badge.textContent = threats.filter(t => t.status === 'TRACKING').length || '';
+  document.getElementById('threat-count').textContent = `${threats.length} THREATS`;
+  if (!threats.length) {
+    el.innerHTML = '<div style="padding:8px 10px;color:var(--dim);font-size:10px">No threats detected</div>';
+    return;
+  }
+  el.innerHTML = threats.map(t => `
+    <div class="asset-item threat-item ${t.threatLevel.toLowerCase()} ${selectedThreat===t.threatId?'active':''}"
+         onclick="selectThreat('${t.threatId}')">
+      <span class="asset-icon" style="color:${t.threatLevel==='HIGH'?'var(--danger)':'var(--warn)'}">▲</span>
+      <div style="flex:1">
+        <div class="asset-name hostile">${t.threatId}</div>
+        <div class="asset-meta">${t.estimatedType}</div>
+      </div>
+      <span class="badge ${t.threatLevel.toLowerCase()}">${t.threatLevel}</span>
+    </div>`).join('');
+}
+
+function renderSensorPanel() {
+  const el = document.getElementById('sensor-list');
+  el.innerHTML = sensors.map(s => `
+    <div class="sensor-item ${!s.active?'inactive':''} ${selectedSensor===s.sensorId?'selected':''}"
+         onclick="selectSensor('${s.sensorId}')">
+      <div class="s-indicator ${s.type} ${!s.active?'inactive':''}"></div>
+      <div style="flex:1">
+        <div class="s-name">${s.name}</div>
+        <div class="s-meta">${s.type} · ${s.orientation}° · ${s.range}m</div>
+      </div>
+      ${s.detections.length ? `<span class="badge tracking">${s.detections.length} DET</span>` : ''}
+    </div>`).join('');
+}
+
+// ── Draw all threats on map ────────────────────────────────────────────────
+function drawAllThreats() {
+  threats.forEach(t => {
+    if (!t.track || !t.track.length) return;
+    const latest = t.track[t.track.length - 1];
+
+    if (threatMarkers[t.threatId]) threatMarkers[t.threatId].remove();
+    if (threatTrails[t.threatId]) threatTrails[t.threatId].remove();
+
+    // Trail
+    const pts = t.track.map(p => [p.latitude, p.longitude]);
+    threatTrails[t.threatId] = L.polyline(pts, { color: '#ff4422', weight: 2, opacity: 0.7, dashArray: '4 3' }).addTo(map);
+
+    // Marker
+    const m = L.marker([latest.latitude, latest.longitude], { icon: threatIcon(t.threatLevel) }).addTo(map);
+    m.bindTooltip(`<b>${t.threatId}</b><br>${t.classification}<br>Conf: ${Math.round(t.confidence*100)}%<br>${t.estimatedType}`, { direction: 'top' });
+    m.on('click', () => selectThreat(t.threatId));
+    threatMarkers[t.threatId] = m;
+  });
+}
+
+function drawAllSensors() {
+  sensors.forEach(s => drawSensor(s));
+}
+
+// ── Select friendly drone ──────────────────────────────────────────────────
+async function selectDrone(droneId) {
+  selectedDrone = droneId;
+  selectedThreat = null;
+  renderAssetPanel();
+  renderThreatPanel();
+  document.getElementById('friendly-telem').style.display = '';
+  document.getElementById('threat-telem').style.display = 'none';
+
+  const res = await fetch(api(`/api/telemetry/${droneId}`));
+  const data = await res.json();
+  telemetryData = data.telemetry || [];
+  if (!telemetryData.length) return;
+
+  stopPlayback();
+  playbackIndex = 0;
+  const sl = document.getElementById('timeline');
+  sl.max = telemetryData.length - 1;
+  sl.value = 0;
+  sl.disabled = false;
+  updateFriendlyDisplay(telemetryData[0]);
+  moveFriendlyMarker(droneId, telemetryData[0]);
+  alertLog(`Tracking ${droneId} — ${telemetryData.length} telemetry points`, 'INFO');
+}
+
+function moveFriendlyMarker(droneId, row) {
+  const lat = row.latitude || row.lat, lon = row.longitude || row.lon;
   if (!lat || !lon) return;
-
-  if (!droneMarker) {
-    droneMarker = L.marker([lat, lon], { icon: droneIcon }).addTo(map);
+  if (!droneMarkers[droneId]) {
+    droneMarkers[droneId] = L.marker([lat, lon], { icon: friendlyIcon() }).addTo(map)
+      .bindTooltip(droneId, { permanent: false });
   } else {
-    droneMarker.setLatLng([lat, lon]);
+    droneMarkers[droneId].setLatLng([lat, lon]);
   }
-
-  // Update trail
-  const allPoints = telemetryData.slice(0, playbackIndex + 1).map(r => {
-    const rp = r.properties || r;
-    return [rp.latitude || rp.lat, rp.longitude || rp.lon];
-  }).filter(([a, b]) => a && b);
-
-  if (trailPolyline) {
-    trailPolyline.setLatLngs(allPoints);
-  } else {
-    trailPolyline = L.polyline(allPoints, { color: '#00d4ff', weight: 2, opacity: 0.6 }).addTo(map);
-  }
-
   map.panTo([lat, lon], { animate: true, duration: 0.3 });
 }
 
-function formatTime(row) {
-  const p = row.properties || row;
-  const ts = p.timestamp || p.time || p.eventTime;
-  if (!ts) return `Frame ${playbackIndex}`;
-  try { return new Date(ts).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'; }
-  catch { return ts; }
+function updateFriendlyDisplay(row) {
+  const set = (id, v, d=2) => { const e = document.getElementById(id); if(e) e.textContent = v!=null?(typeof v==='number'?v.toFixed(d):v):'--'; };
+  set('t-lat', row.latitude || row.lat, 6);
+  set('t-lon', row.longitude || row.lon, 6);
+  set('t-alt', row.altitude || row.alt, 0);
+  set('t-spd', row.speed, 1);
+  set('t-hdg', row.heading, 0);
+  set('t-bat', row.battery, 0);
+  const s = row.status || 'ACTIVE';
+  const el = document.getElementById('t-status');
+  el.textContent = s;
+  el.style.color = s === 'AIRBORNE' ? 'var(--green)' : s === 'WARNING' ? 'var(--warn)' : 'var(--accent)';
 }
 
-// ── Load drones ────────────────────────────────────────────────────────────
-document.getElementById('load-drones-btn').addEventListener('click', async () => {
-  document.getElementById('foundry-status').textContent = 'FOUNDRY: QUERYING...';
-  try {
-    const res = await fetch(apiUrl('/api/drones'));
-    const data = await res.json();
-    const list = document.getElementById('drone-list');
-    list.innerHTML = '';
-    if (!data.drones.length) {
-      list.innerHTML = '<li style="color:var(--warn);padding:8px">No drones found</li>';
-      document.getElementById('foundry-status').textContent = 'FOUNDRY: CONNECTED (empty)';
-      return;
-    }
-    data.drones.forEach(id => {
-      const li = document.createElement('li');
-      li.className = 'drone-item';
-      li.innerHTML = `<div class="drone-id">${id}</div><div class="drone-status airborne">TRACKING</div>`;
-      li.addEventListener('click', () => selectDrone(id, li));
-      list.appendChild(li);
-    });
-    document.getElementById('foundry-status').textContent = `FOUNDRY: CONNECTED (${data.drones.length} assets)`;
-    log(`Loaded ${data.drones.length} drone(s) from Foundry`, 'system');
-  } catch (e) {
-    document.getElementById('foundry-status').textContent = 'FOUNDRY: ERROR';
-    log(`Failed to load drones: ${e.message}`, 'system');
+// ── Select threat ──────────────────────────────────────────────────────────
+function selectThreat(threatId) {
+  selectedThreat = threatId;
+  selectedDrone = null;
+  renderThreatPanel();
+  renderAssetPanel();
+  document.getElementById('threat-telem').style.display = '';
+  document.getElementById('friendly-telem').style.display = 'none';
+
+  const t = threats.find(x => x.threatId === threatId);
+  if (!t) return;
+  document.getElementById('th-id').textContent = t.threatId;
+  document.getElementById('th-class').textContent = t.classification;
+  document.getElementById('th-type').textContent = t.estimatedType || '--';
+  document.getElementById('th-status').textContent = t.status;
+  document.getElementById('th-level').textContent = t.threatLevel;
+  document.getElementById('th-sensors').textContent = (t.detectedBy || []).join(', ');
+  const pct = Math.round((t.confidence || 0) * 100);
+  document.getElementById('th-conf').textContent = `${pct}%`;
+  document.getElementById('th-conf-bar').style.width = `${pct}%`;
+  document.getElementById('th-conf-bar').style.background =
+    pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warn)' : 'var(--green)';
+
+  if (t.track && t.track.length) {
+    const latest = t.track[t.track.length - 1];
+    document.getElementById('th-pos').textContent = `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}`;
+    document.getElementById('th-alt').textContent = `${latest.altitude}m`;
+    document.getElementById('th-spd').textContent = `${latest.speed} m/s`;
+    document.getElementById('th-hdg').textContent = `${latest.heading}°`;
+    map.panTo([latest.latitude, latest.longitude]);
   }
+
+  alertLog(`Focused on ${threatId} — ${t.classification} [${t.threatLevel}] confidence ${pct}%`, 'THREAT');
+}
+
+// ── Select sensor ──────────────────────────────────────────────────────────
+function selectSensor(sensorId) {
+  selectedSensor = sensorId;
+  renderSensorPanel();
+  const s = sensors.find(x => x.sensorId === sensorId);
+  if (!s) return;
+
+  document.getElementById('sensor-editor').style.display = '';
+  document.getElementById('editor-sensor-id').textContent = s.sensorId;
+  document.getElementById('editor-orientation').value = s.orientation;
+  document.getElementById('editor-type').value = s.type;
+
+  const modRow = document.getElementById('editor-modality-row');
+  if (s.type === 'IMAGERY') {
+    modRow.style.display = '';
+    document.getElementById('editor-modality').value = s.modality || 'EO';
+  } else {
+    modRow.style.display = 'none';
+  }
+
+  map.panTo([s.position.latitude, s.position.longitude]);
+}
+
+document.getElementById('editor-type').addEventListener('change', e => {
+  document.getElementById('editor-modality-row').style.display =
+    e.target.value === 'IMAGERY' ? '' : 'none';
 });
 
-// ── Select drone + load telemetry ──────────────────────────────────────────
-async function selectDrone(droneId, el) {
-  document.querySelectorAll('.drone-item').forEach(i => i.classList.remove('active'));
-  el.classList.add('active');
-  activeDrone = droneId;
-  log(`Loading telemetry for ${droneId}...`, 'system');
+function applyEditorUpdate() {
+  if (!selectedSensor) return;
+  const patch = {
+    orientation: parseInt(document.getElementById('editor-orientation').value, 10),
+    type: document.getElementById('editor-type').value,
+  };
+  const type = patch.type;
+  if (type === 'IMAGERY') patch.modality = document.getElementById('editor-modality').value;
 
-  try {
-    const res = await fetch(apiUrl(`/api/telemetry/${droneId}`));
-    const data = await res.json();
-    telemetryData = data.telemetry || [];
-
-    if (!telemetryData.length) {
-      log(`No telemetry data found for ${droneId}`, 'system');
-      return;
-    }
-
-    // Reset playback
-    stopPlayback();
-    playbackIndex = 0;
-    const slider = document.getElementById('timeline');
-    slider.max = telemetryData.length - 1;
-    slider.value = 0;
-    slider.disabled = false;
-    document.getElementById('playback-btn').disabled = false;
-
-    // Show first point
-    updateTelemetryDisplay(telemetryData[0]);
-    updateMapPosition(telemetryData[0]);
-    document.getElementById('time-display').textContent = formatTime(telemetryData[0]);
-
-    log(`Loaded ${telemetryData.length} telemetry points for ${droneId}`, 'system');
-  } catch (e) {
-    log(`Error loading telemetry: ${e.message}`, 'system');
-  }
+  fetch(api(`/api/sensors/${selectedSensor}`), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
+  }).then(r => r.json()).then(updated => {
+    sensors = sensors.map(s => s.sensorId === updated.sensorId ? updated : s);
+    drawSensor(updated);
+    renderSensorPanel();
+    alertLog(`${updated.name}: bearing ${updated.orientation}°, type ${updated.type}`, 'INFO');
+  });
 }
 
-// ── Timeline scrubber ──────────────────────────────────────────────────────
+function toggleSensorActive() {
+  if (!selectedSensor) return;
+  const s = sensors.find(x => x.sensorId === selectedSensor);
+  if (!s) return;
+  fetch(api(`/api/sensors/${selectedSensor}`), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: !s.active })
+  }).then(r => r.json()).then(updated => {
+    sensors = sensors.map(x => x.sensorId === updated.sensorId ? updated : x);
+    drawSensor(updated);
+    renderSensorPanel();
+    alertLog(`${updated.name} ${updated.active ? 'ACTIVATED' : 'DEACTIVATED'}`, updated.active ? 'INFO' : 'WARNING');
+  });
+}
+
+// ── Modality selector ──────────────────────────────────────────────────────
+function setModality(btn) {
+  document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentModality = btn.dataset.mode;
+  alertLog(`Command modality: ${currentModality}`, 'INFO');
+}
+
+// ── Timeline playback ──────────────────────────────────────────────────────
 document.getElementById('timeline').addEventListener('input', e => {
   if (!telemetryData.length) return;
   playbackIndex = parseInt(e.target.value);
-  updateTelemetryDisplay(telemetryData[playbackIndex]);
-  updateMapPosition(telemetryData[playbackIndex]);
-  document.getElementById('time-display').textContent = formatTime(telemetryData[playbackIndex]);
+  updateFriendlyDisplay(telemetryData[playbackIndex]);
+  moveFriendlyMarker(selectedDrone, telemetryData[playbackIndex]);
+  document.getElementById('time-display').textContent = fmtTime(telemetryData[playbackIndex]);
 });
 
 function stopPlayback() {
@@ -359,131 +700,118 @@ function stopPlayback() {
   document.getElementById('playback-btn').classList.remove('playing');
 }
 
-function startPlayback() {
+document.getElementById('playback-btn').addEventListener('click', () => {
   if (!telemetryData.length) return;
+  if (isPlaying) { stopPlayback(); return; }
   isPlaying = true;
   document.getElementById('playback-btn').textContent = '⏸ PAUSE';
   document.getElementById('playback-btn').classList.add('playing');
   const speed = parseFloat(document.getElementById('speed-select').value);
-  const interval = 1000 / speed;
-
   playbackTimer = setInterval(() => {
-    if (playbackIndex >= telemetryData.length - 1) {
-      stopPlayback();
-      return;
-    }
+    if (playbackIndex >= telemetryData.length - 1) { stopPlayback(); return; }
     playbackIndex++;
     document.getElementById('timeline').value = playbackIndex;
-    updateTelemetryDisplay(telemetryData[playbackIndex]);
-    updateMapPosition(telemetryData[playbackIndex]);
-    document.getElementById('time-display').textContent = formatTime(telemetryData[playbackIndex]);
-  }, interval);
-}
-
-document.getElementById('playback-btn').addEventListener('click', () => {
-  if (isPlaying) stopPlayback();
-  else startPlayback();
+    updateFriendlyDisplay(telemetryData[playbackIndex]);
+    moveFriendlyMarker(selectedDrone, telemetryData[playbackIndex]);
+    document.getElementById('time-display').textContent = fmtTime(telemetryData[playbackIndex]);
+  }, 1000 / speed);
 });
 
-// ── Voice command ──────────────────────────────────────────────────────────
+function fmtTime(row) {
+  const ts = row.timestamp || row.time || '';
+  try { return new Date(ts).toISOString().replace('T', ' ').slice(0, 19) + 'Z'; } catch { return ts; }
+}
+
+// ── Alert log ──────────────────────────────────────────────────────────────
+function alertLog(text, type = 'INFO') {
+  const el = document.getElementById('alert-log');
+  const d = document.createElement('div');
+  d.className = `alert-msg ${type}`;
+  const now = new Date().toISOString().slice(11, 19);
+  d.innerHTML = `<span class="alert-time">${now}Z</span>${text}`;
+  el.prepend(d);
+  while (el.children.length > 100) el.removeChild(el.lastChild);
+}
+
+// ── Voice recognition ──────────────────────────────────────────────────────
 let recognition = null;
 const voiceBtn = document.getElementById('voice-btn');
 
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
+if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
   recognition.lang = 'en-US';
-
   recognition.onresult = e => {
     const text = e.results[0][0].transcript;
     document.getElementById('text-input').value = text;
     voiceBtn.classList.remove('recording');
-    voiceBtn.textContent = '🎤 VOICE';
+    voiceBtn.textContent = '🎤';
     sendCommand(text);
   };
-
-  recognition.onerror = () => {
+  recognition.onerror = recognition.onend = () => {
     voiceBtn.classList.remove('recording');
-    voiceBtn.textContent = '🎤 VOICE';
-    log('Voice recognition error', 'system');
-  };
-
-  recognition.onend = () => {
-    voiceBtn.classList.remove('recording');
-    voiceBtn.textContent = '🎤 VOICE';
+    voiceBtn.textContent = '🎤';
   };
 } else {
-  voiceBtn.textContent = '🎤 (no mic)';
   voiceBtn.disabled = true;
 }
 
 voiceBtn.addEventListener('click', () => {
   if (!recognition) return;
-  if (voiceBtn.classList.contains('recording')) {
-    recognition.stop();
-  } else {
-    voiceBtn.classList.add('recording');
-    voiceBtn.textContent = '● LISTENING';
-    recognition.start();
-  }
+  if (voiceBtn.classList.contains('recording')) { recognition.stop(); return; }
+  voiceBtn.classList.add('recording');
+  voiceBtn.textContent = '●';
+  recognition.start();
 });
 
-// ── Text-to-speech response ────────────────────────────────────────────────
 function speak(text) {
-  if (!('speechSynthesis' in window)) return;
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 1.1;
-  window.speechSynthesis.speak(utt);
+  if (!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text.slice(0, 200));
+  u.rate = 1.1;
+  window.speechSynthesis.speak(u);
 }
 
-// ── Send command to backend ────────────────────────────────────────────────
+// ── Send command ───────────────────────────────────────────────────────────
 async function sendCommand(text) {
   if (!text.trim()) return;
-  log(`OPERATOR: ${text}`, 'operator');
   document.getElementById('text-input').value = '';
 
+  // Prepend modality context if not ALL
+  const fullText = currentModality !== 'ALL'
+    ? `[${currentModality} SENSOR CONTEXT] ${text}`
+    : text;
+
+  alertLog(text, 'OP');
+
   try {
-    const res = await fetch(apiUrl('/api/command'), {
+    const res = await fetch(api('/api/command'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        drone_id: activeDrone,
-        conversation_history: conversationHistory,
-      }),
+      body: JSON.stringify({ text: fullText, drone_id: selectedDrone, conversation_history: conversationHistory }),
     });
     const data = await res.json();
-    log(`AI: ${data.response}`, 'ai');
+    alertLog(data.response, 'AI');
     speak(data.response);
     conversationHistory = data.updated_history;
-    if (data.actions_taken.length) {
-      log(`Actions: ${data.actions_taken.join(', ')}`, 'system');
+
+    // Apply any sensor updates Claude made
+    if (data.sensor_updates && data.sensor_updates.length) {
+      data.sensor_updates.forEach(updated => {
+        sensors = sensors.map(s => s.sensorId === updated.sensorId ? updated : s);
+        drawSensor(updated);
+      });
+      renderSensorPanel();
     }
   } catch (e) {
-    log(`Error: ${e.message}`, 'system');
+    alertLog(`Command error: ${e.message}`, 'WARNING');
   }
 }
 
-document.getElementById('send-btn').addEventListener('click', () => {
-  sendCommand(document.getElementById('text-input').value);
-});
-document.getElementById('text-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendCommand(e.target.value);
-});
+document.getElementById('send-btn').addEventListener('click', () => sendCommand(document.getElementById('text-input').value));
+document.getElementById('text-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendCommand(e.target.value); });
 
-// ── Initial status check ───────────────────────────────────────────────────
-(async () => {
-  try {
-    const r = await fetch(apiUrl('/api/drones'));
-    if (r.ok) {
-      document.getElementById('foundry-status').textContent = 'FOUNDRY: CONNECTED';
-    }
-  } catch {
-    document.getElementById('foundry-status').textContent = 'FOUNDRY: OFFLINE';
-  }
-})();
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadAll();
 </script>
 </body>
 </html>
