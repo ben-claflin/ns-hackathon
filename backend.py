@@ -1,5 +1,5 @@
 """
-Drone C2 + Counter-UAS Backend — FastAPI + Claude AI
+Drone C2 + Counter-UAS Backend — FastAPI + OpenAI tool calling
 """
 import os
 import json
@@ -12,22 +12,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 
 from github_data_client import GitHubDataClient
 
 load_dotenv()
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
 def _make_data_client():
     """Use local JSON files in the repository as the app data store."""
     print("[INFO] Using local JSON file data source")
     return GitHubDataClient()
 
-# ── Claude tools ───────────────────────────────────────────────────────────
+# ── AI tools ───────────────────────────────────────────────────────────────
 
-CLAUDE_TOOLS = [
+APP_TOOLS = [
     {
         "name": "list_drones",
         "description": "Return all friendly drone IDs currently tracked.",
@@ -146,6 +147,18 @@ CLAUDE_TOOLS = [
             "required": ["sensor_id", "command"],
         },
     },
+]
+
+OPENAI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": tool["name"],
+            "description": tool["description"],
+            "parameters": tool["input_schema"],
+        },
+    }
+    for tool in APP_TOOLS
 ]
 
 SYSTEM_PROMPT = """You are an AI operator for a Counter-UAS (C-UAS) Command & Control platform.
@@ -310,11 +323,13 @@ async def api_status():
     return {
         "data_source": data_client.__class__.__name__ if data_client else "uninitialized",
         "storage": "local_json",
-        "voice_ai_configured": bool(ANTHROPIC_API_KEY),
+        "voice_ai_configured": bool(OPENAI_API_KEY),
+        "voice_ai_provider": "openai",
+        "voice_ai_model": OPENAI_MODEL,
     }
 
 
-# ── Command (Claude agentic loop) ──────────────────────────────────────────
+# ── Command (OpenAI agentic loop) ──────────────────────────────────────────
 
 class CommandRequest(BaseModel):
     text: str
@@ -330,50 +345,65 @@ class CommandResponse(BaseModel):
 
 @app.post("/api/command", response_model=CommandResponse)
 async def api_command(req: CommandRequest):
-    if not ANTHROPIC_API_KEY:
-        raise HTTPException(503, "ANTHROPIC_API_KEY not configured")
+    if not OPENAI_API_KEY:
+        raise HTTPException(503, "OPENAI_API_KEY not configured")
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
     messages = list(req.conversation_history)
     messages.append({"role": "user", "content": req.text})
 
     actions_taken, sensor_updates, asset_updates = [], [], []
 
-    while True:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
+    for _ in range(6):
+        response = client.chat.completions.create(
+            model=OPENAI_MODEL,
             max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            tools=CLAUDE_TOOLS,
-            messages=messages,
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}, *messages],
+            tools=OPENAI_TOOLS,
+            tool_choice="auto",
         )
-        messages.append({"role": "assistant", "content": response.content})
+        msg = response.choices[0].message
+        assistant_msg = {"role": "assistant", "content": msg.content or ""}
 
-        if response.stop_reason == "end_turn":
-            text = next((b.text for b in response.content if hasattr(b, "text")), "")
-            return CommandResponse(response=text, actions_taken=actions_taken,
-                                   updated_history=messages, sensor_updates=sensor_updates,
-                                   asset_updates=asset_updates)
+        if msg.tool_calls:
+            assistant_msg["tool_calls"] = [
+                {
+                    "id": call.id,
+                    "type": call.type,
+                    "function": {
+                        "name": call.function.name,
+                        "arguments": call.function.arguments,
+                    },
+                }
+                for call in msg.tool_calls
+            ]
+            messages.append(assistant_msg)
 
-        if response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result_str = execute_tool(block.name, dict(block.input))
-                    actions_taken.append(f"{block.name}({json.dumps(block.input)})")
-                    data = json.loads(result_str)
-                    if block.name == "update_sensor" and "sensor" in data:
-                        sensor_updates.append(data["sensor"])
-                    if block.name == "deploy_asset" and "asset" in data:
-                        asset_updates.append(data["asset"])
-                    tool_results.append({"type": "tool_result",
-                                         "tool_use_id": block.id, "content": result_str})
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            text = next((b.text for b in response.content if hasattr(b, "text")), "")
-            return CommandResponse(response=text or "Done.", actions_taken=actions_taken,
-                                   updated_history=messages, sensor_updates=sensor_updates,
-                                   asset_updates=asset_updates)
+            for call in msg.tool_calls:
+                inputs = json.loads(call.function.arguments or "{}")
+                result_str = execute_tool(call.function.name, inputs)
+                actions_taken.append(f"{call.function.name}({json.dumps(inputs)})")
+                data = json.loads(result_str)
+                if call.function.name == "update_sensor" and "sensor" in data:
+                    sensor_updates.append(data["sensor"])
+                if call.function.name == "deploy_asset" and "asset" in data:
+                    asset_updates.append(data["asset"])
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": result_str,
+                })
+            continue
+
+        messages.append(assistant_msg)
+        text = msg.content or "Done."
+        return CommandResponse(response=text, actions_taken=actions_taken,
+                               updated_history=messages, sensor_updates=sensor_updates,
+                               asset_updates=asset_updates)
+
+    return CommandResponse(response="Unable to complete command within tool-call limit.",
+                           actions_taken=actions_taken, updated_history=messages,
+                           sensor_updates=sensor_updates, asset_updates=asset_updates)
 
 
 # ── WebSocket telemetry stream ─────────────────────────────────────────────

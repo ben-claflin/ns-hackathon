@@ -8,13 +8,13 @@ The platform works out-of-the-box with sample data stored in `/data/` folder:
 
 ```bash
 # 1. Install
-pip install -r requirements.txt
+python3 -m pip install --user -r requirements.txt
 
 # 2. Optional: create local environment file for voice AI later
 # cp .env.example .env
 
 # 3. Run
-uvicorn backend:app --reload --port 8000
+python3 -m uvicorn backend:app --reload --port 8000
 
 # 4. Open frontend
 # http://localhost:8000
@@ -52,7 +52,20 @@ You should see `GitHubDataClient` with `storage` set to `local_json`.
 
 This is a public GitHub repository. Do not commit real API keys, private hostnames, or bearer tokens.
 
-No secrets are required for the map and local JSON data. Later, voice AI commands can use `ANTHROPIC_API_KEY` in a local `.env` file, which is ignored by git.
+No secrets are required for the map and local JSON data. Voice AI commands use `OPENAI_API_KEY` in a local `.env` file, which is ignored by git.
+
+To enable voice/text command reasoning:
+
+```bash
+cp .env.example .env
+```
+
+Then add your key locally:
+
+```bash
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
 
 ### Updating Sample Data
 
@@ -143,6 +156,6 @@ Run the backend locally at the venue — do not deploy to a cloud host.
 |------|---------|
 | `foundry_client.py` | Foundry REST API wrapper (ontology + datasets + actions) |
 | `discover.py` | One-time discovery script to find dataset/ontology RIDs |
-| `backend.py` | FastAPI server with Claude tool-use integration |
+| `backend.py` | FastAPI server with OpenAI tool-use integration |
 | `mcp_server.py` | MCP server for Claude Code direct Foundry access |
 | `static/index.html` | C2 frontend (map, timeline, voice commands) |
