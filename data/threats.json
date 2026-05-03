@@ -1,0 +1,41 @@
+[
+  {
+    "threatId": "THREAT-001",
+    "classification": "HOSTILE_UAS",
+    "confidence": 0.91,
+    "threatLevel": "HIGH",
+    "status": "TRACKING",
+    "firstDetected": "2026-05-03T14:00:05Z",
+    "lastSeen": "2026-05-03T14:00:12Z",
+    "detectedBy": ["ACOUSTIC-01", "RF-01", "IMAGERY-01"],
+    "estimatedType": "Fixed-wing UAS",
+    "track": [
+      { "timestamp": "2026-05-03T14:00:05Z", "latitude": 38.9040, "longitude": -77.0390, "altitude": 45, "speed": 18.2, "heading": 225 },
+      { "timestamp": "2026-05-03T14:00:06Z", "latitude": 38.9038, "longitude": -77.0392, "altitude": 46, "speed": 18.4, "heading": 225 },
+      { "timestamp": "2026-05-03T14:00:07Z", "latitude": 38.9036, "longitude": -77.0394, "altitude": 47, "speed": 18.5, "heading": 224 },
+      { "timestamp": "2026-05-03T14:00:08Z", "latitude": 38.9034, "longitude": -77.0396, "altitude": 48, "speed": 18.6, "heading": 224 },
+      { "timestamp": "2026-05-03T14:00:09Z", "latitude": 38.9032, "longitude": -77.0398, "altitude": 49, "speed": 18.7, "heading": 223 },
+      { "timestamp": "2026-05-03T14:00:10Z", "latitude": 38.9030, "longitude": -77.0400, "altitude": 50, "speed": 18.8, "heading": 223 },
+      { "timestamp": "2026-05-03T14:00:11Z", "latitude": 38.9028, "longitude": -77.0402, "altitude": 51, "speed": 18.9, "heading": 222 },
+      { "timestamp": "2026-05-03T14:00:12Z", "latitude": 38.9026, "longitude": -77.0404, "altitude": 52, "speed": 19.0, "heading": 222 }
+    ]
+  },
+  {
+    "threatId": "THREAT-002",
+    "classification": "SUSPECTED_UAS",
+    "confidence": 0.63,
+    "threatLevel": "MEDIUM",
+    "status": "TRACKING",
+    "firstDetected": "2026-05-03T14:00:08Z",
+    "lastSeen": "2026-05-03T14:00:12Z",
+    "detectedBy": ["RF-01", "RF-02"],
+    "estimatedType": "Quadrotor UAS",
+    "track": [
+      { "timestamp": "2026-05-03T14:00:08Z", "latitude": 38.8995, "longitude": -77.0320, "altitude": 30, "speed": 7.5, "heading": 180 },
+      { "timestamp": "2026-05-03T14:00:09Z", "latitude": 38.8993, "longitude": -77.0320, "altitude": 31, "speed": 7.6, "heading": 182 },
+      { "timestamp": "2026-05-03T14:00:10Z", "latitude": 38.8991, "longitude": -77.0319, "altitude": 32, "speed": 7.7, "heading": 183 },
+      { "timestamp": "2026-05-03T14:00:11Z", "latitude": 38.8989, "longitude": -77.0319, "altitude": 33, "speed": 7.8, "heading": 183 },
+      { "timestamp": "2026-05-03T14:00:12Z", "latitude": 38.8987, "longitude": -77.0318, "altitude": 34, "speed": 7.9, "heading": 184 }
+    ]
+  }
+]

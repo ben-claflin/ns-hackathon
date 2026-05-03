@@ -1,0 +1,74 @@
+[
+  {
+    "sensorId": "ACOUSTIC-01",
+    "name": "Acoustic Array Alpha",
+    "type": "ACOUSTIC",
+    "position": { "latitude": 38.9020, "longitude": -77.0420 },
+    "orientation": 0,
+    "fov": 360,
+    "range": 800,
+    "active": true,
+    "sensitivity": "HIGH",
+    "detections": ["THREAT-001"]
+  },
+  {
+    "sensorId": "ACOUSTIC-02",
+    "name": "Acoustic Array Bravo",
+    "type": "ACOUSTIC",
+    "position": { "latitude": 38.9100, "longitude": -77.0280 },
+    "orientation": 0,
+    "fov": 360,
+    "range": 600,
+    "active": true,
+    "sensitivity": "MEDIUM",
+    "detections": []
+  },
+  {
+    "sensorId": "RF-01",
+    "name": "RF Intercept Alpha",
+    "type": "RF",
+    "position": { "latitude": 38.9060, "longitude": -77.0380 },
+    "orientation": 120,
+    "fov": 90,
+    "range": 2500,
+    "active": true,
+    "frequency_band": "2.4GHz / 5.8GHz",
+    "detections": ["THREAT-001", "THREAT-002"]
+  },
+  {
+    "sensorId": "RF-02",
+    "name": "RF Intercept Bravo",
+    "type": "RF",
+    "position": { "latitude": 38.8980, "longitude": -77.0300 },
+    "orientation": 310,
+    "fov": 90,
+    "range": 2000,
+    "active": true,
+    "frequency_band": "900MHz / 2.4GHz",
+    "detections": ["THREAT-002"]
+  },
+  {
+    "sensorId": "IMAGERY-01",
+    "name": "EO/IR Camera Alpha",
+    "type": "IMAGERY",
+    "position": { "latitude": 38.9080, "longitude": -77.0350 },
+    "orientation": 135,
+    "fov": 30,
+    "range": 3500,
+    "active": true,
+    "modality": "EO",
+    "detections": ["THREAT-001"]
+  },
+  {
+    "sensorId": "IMAGERY-02",
+    "name": "EO/IR Camera Bravo",
+    "type": "IMAGERY",
+    "position": { "latitude": 38.9000, "longitude": -77.0450 },
+    "orientation": 60,
+    "fov": 25,
+    "range": 4000,
+    "active": false,
+    "modality": "IR",
+    "detections": []
+  }
+]
