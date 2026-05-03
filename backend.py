@@ -15,7 +15,15 @@ from pydantic import BaseModel
 import anthropic
 from dotenv import load_dotenv
 
-from foundry_client import FoundryClient
+# Use GitHub data by default, fall back to Foundry if available
+try:
+    from github_data_client import GitHubDataClient
+    DATA_CLIENT_CLASS = GitHubDataClient
+    DEFAULT_DATA_SOURCE = "github"
+except ImportError:
+    from foundry_client import FoundryClient
+    DATA_CLIENT_CLASS = FoundryClient
+    DEFAULT_DATA_SOURCE = "foundry"
 
 load_dotenv()
 
@@ -84,15 +92,16 @@ Always confirm the action taken and current drone status."""
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 
-foundry: Optional[FoundryClient] = None
+data_client = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global foundry
-    foundry = FoundryClient()
+    global data_client
+    data_client = DATA_CLIENT_CLASS()
+    print(f"[INFO] Using data source: {DEFAULT_DATA_SOURCE}")
     yield
-    foundry.close()
+    data_client.close()
 
 
 app = FastAPI(title="Drone C2", lifespan=lifespan)
@@ -120,7 +129,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def execute_tool(name: str, inputs: dict) -> str:
     try:
         if name == "get_drone_telemetry":
-            rows = foundry.get_telemetry(
+            rows = data_client.get_telemetry(
                 inputs["drone_id"],
                 inputs.get("start_time"),
                 inputs.get("end_time"),
@@ -129,15 +138,15 @@ def execute_tool(name: str, inputs: dict) -> str:
             return json.dumps({"count": len(rows), "telemetry": rows[:10], "total_rows": len(rows)})
 
         elif name == "list_drones":
-            drones = foundry.list_drones()
+            drones = data_client.list_drones()
             return json.dumps({"drones": drones})
 
         elif name == "get_missions":
-            missions = foundry.get_missions()
+            missions = data_client.get_missions()
             return json.dumps({"missions": missions})
 
         elif name == "execute_drone_command":
-            # Map user-friendly command to Foundry action type
+            # Map user-friendly command to action type
             action_map = {
                 "hold": "drone_hold",
                 "abort": "drone_abort",
@@ -147,7 +156,7 @@ def execute_tool(name: str, inputs: dict) -> str:
             action = action_map.get(inputs["command"], inputs["command"])
             params = {"droneId": inputs["drone_id"]}
             params.update(inputs.get("parameters") or {})
-            result = foundry.execute_action(action, params)
+            result = data_client.execute_action(action, params)
             return json.dumps({"status": "executed", "action": action, "result": result})
 
         else:
@@ -166,7 +175,7 @@ async def root():
 
 @app.get("/api/drones")
 async def api_list_drones():
-    drones = foundry.list_drones()
+    drones = data_client.list_drones()
     return {"drones": drones}
 
 
@@ -176,13 +185,13 @@ async def api_telemetry(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
 ):
-    rows = foundry.get_telemetry(drone_id, start_time, end_time)
+    rows = data_client.get_telemetry(drone_id, start_time, end_time)
     return {"drone_id": drone_id, "count": len(rows), "telemetry": rows}
 
 
 @app.get("/api/missions")
 async def api_missions():
-    missions = foundry.get_missions()
+    missions = data_client.get_missions()
     return {"missions": missions}
 
 
@@ -272,7 +281,7 @@ async def ws_telemetry(websocket: WebSocket, drone_id: str):
     end_time = websocket.query_params.get("end")
 
     try:
-        rows = foundry.get_telemetry(drone_id, start_time, end_time)
+        rows = data_client.get_telemetry(drone_id, start_time, end_time)
         if not rows:
             await websocket.send_json({"error": "No telemetry found", "drone_id": drone_id})
             await websocket.close()

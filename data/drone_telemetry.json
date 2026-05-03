@@ -1,0 +1,167 @@
+[
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:00Z",
+    "latitude": 38.9072,
+    "longitude": -77.0369,
+    "altitude": 120,
+    "speed": 12.5,
+    "heading": 45,
+    "battery": 92,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:01Z",
+    "latitude": 38.9073,
+    "longitude": -77.0368,
+    "altitude": 125,
+    "speed": 12.7,
+    "heading": 45,
+    "battery": 91,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:02Z",
+    "latitude": 38.9074,
+    "longitude": -77.0367,
+    "altitude": 130,
+    "speed": 12.8,
+    "heading": 45,
+    "battery": 91,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:03Z",
+    "latitude": 38.9075,
+    "longitude": -77.0366,
+    "altitude": 135,
+    "speed": 13.0,
+    "heading": 45,
+    "battery": 90,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:04Z",
+    "latitude": 38.9076,
+    "longitude": -77.0365,
+    "altitude": 140,
+    "speed": 13.1,
+    "heading": 45,
+    "battery": 90,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:05Z",
+    "latitude": 38.9078,
+    "longitude": -77.0363,
+    "altitude": 145,
+    "speed": 13.2,
+    "heading": 48,
+    "battery": 89,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "ALPHA-001",
+    "timestamp": "2026-05-03T14:00:06Z",
+    "latitude": 38.9080,
+    "longitude": -77.0361,
+    "altitude": 150,
+    "speed": 13.3,
+    "heading": 50,
+    "battery": 89,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "BETA-002",
+    "timestamp": "2026-05-03T14:00:00Z",
+    "latitude": 38.8950,
+    "longitude": -77.0450,
+    "altitude": 85,
+    "speed": 8.5,
+    "heading": 180,
+    "battery": 75,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "BETA-002",
+    "timestamp": "2026-05-03T14:00:01Z",
+    "latitude": 38.8948,
+    "longitude": -77.0450,
+    "altitude": 88,
+    "speed": 8.6,
+    "heading": 180,
+    "battery": 74,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "BETA-002",
+    "timestamp": "2026-05-03T14:00:02Z",
+    "latitude": 38.8946,
+    "longitude": -77.0450,
+    "altitude": 90,
+    "speed": 8.7,
+    "heading": 180,
+    "battery": 74,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "BETA-002",
+    "timestamp": "2026-05-03T14:00:03Z",
+    "latitude": 38.8944,
+    "longitude": -77.0450,
+    "altitude": 92,
+    "speed": 8.8,
+    "heading": 180,
+    "battery": 73,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "GAMMA-003",
+    "timestamp": "2026-05-03T14:00:00Z",
+    "latitude": 38.9150,
+    "longitude": -77.0250,
+    "altitude": 200,
+    "speed": 15.0,
+    "heading": 270,
+    "battery": 88,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "GAMMA-003",
+    "timestamp": "2026-05-03T14:00:01Z",
+    "latitude": 38.9150,
+    "longitude": -77.0248,
+    "altitude": 205,
+    "speed": 15.2,
+    "heading": 270,
+    "battery": 87,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "GAMMA-003",
+    "timestamp": "2026-05-03T14:00:02Z",
+    "latitude": 38.9150,
+    "longitude": -77.0245,
+    "altitude": 210,
+    "speed": 15.3,
+    "heading": 270,
+    "battery": 87,
+    "status": "AIRBORNE"
+  },
+  {
+    "droneId": "GAMMA-003",
+    "timestamp": "2026-05-03T14:00:03Z",
+    "latitude": 38.9150,
+    "longitude": -77.0242,
+    "altitude": 215,
+    "speed": 15.4,
+    "heading": 270,
+    "battery": 86,
+    "status": "AIRBORNE"
+  }
+]
